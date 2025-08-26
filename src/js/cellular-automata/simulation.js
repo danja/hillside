@@ -60,15 +60,25 @@ export class CellularAutomataSimulation {
                 this.bassInfluence = audioAnalysis.bass;
                 this.midInfluence = audioAnalysis.mid;
                 this.trebleInfluence = audioAnalysis.treble;
+                this.beatIntensity = audioAnalysis.beatIntensity;
             }
+        } else {
+            this.beatIntensity = 0;
         }
     }
 
     draw() {
         this.updateAudioInfluence();
         
+        // Draw black background first
+        this.context.globalAlpha = 1.0;
         this.context.fillStyle = '#000';
         this.context.fillRect(0, 0, this.width, this.height);
+        
+        // Apply beat-driven brightness pulsing to visualization elements
+        const baseBrightness = 1.0;
+        const beatBrightness = this.beatIntensity || 0;
+        this.context.globalAlpha = baseBrightness + beatBrightness;
 
         this.context.strokeStyle = '#ffffff80';
         this.context.lineWidth = 0.51;
@@ -87,15 +97,15 @@ export class CellularAutomataSimulation {
                         t = e.size < e2.size ? e : e2;
                         // Audio-reactive line width: bass increases thickness
                         const baseLineWidth = Math.min(e.vx, 2);
-                        this.context.lineWidth = baseLineWidth * (1 + this.bassInfluence * 2);
+                        this.context.lineWidth = baseLineWidth * (1 + this.bassInfluence * 4);
                         
                         // Audio-reactive size growth: mid frequencies affect growth rate
-                        const growthRate = 0.08 * (1 + this.midInfluence * 1.5);
+                        const growthRate = 0.08 * (1 + this.midInfluence * 3);
                         e.size += (growthRate * e2.size) / d;
                         e2.size += (growthRate * e.size) / d;
                         
                         // Audio-reactive velocity exchange: treble affects interaction strength
-                        const interactionStrength = 0.41 * (1 + this.trebleInfluence * 1.2);
+                        const interactionStrength = 0.41 * (1 + this.trebleInfluence * 2.5);
                         e.vx += (interactionStrength * e2.vx) / Math.max(d, 0.01);
                         e.vy += (interactionStrength * e2.vy) / Math.max(d, 0.01);
                         e2.vx += (interactionStrength * e.vx) / Math.max(d, 0.01);
@@ -103,7 +113,7 @@ export class CellularAutomataSimulation {
                         
                         // Audio-reactive line opacity: overall level affects brightness
                         const baseOpacity = 2 / Math.log(d);
-                        const audioReactiveOpacity = baseOpacity * (0.3 + this.bassInfluence * 0.7);
+                        const audioReactiveOpacity = baseOpacity * (0.2 + this.bassInfluence * 1.2);
                         this.context.strokeStyle = t.color.replace(')', ',' + audioReactiveOpacity + ')').replace('rgb', 'rgba');
                         this.context.beginPath();
                         this.context.moveTo(e.x, e.y);
@@ -126,11 +136,11 @@ export class CellularAutomataSimulation {
             
             // Audio-reactive radius: overall audio level increases node size
             const audioReactivity = this.bassInfluence + this.midInfluence + this.trebleInfluence;
-            const audioInfluencedRadius = baseRadius * (1.0 + audioReactivity * 0.5);
+            const audioInfluencedRadius = baseRadius * (1.0 + audioReactivity * 1.2);
             
             // Shadow with audio-reactive opacity
             this.context.beginPath();
-            const shadowOpacity = 0.6 + this.bassInfluence * 0.4;
+            const shadowOpacity = 0.4 + this.bassInfluence * 0.8;
             this.context.fillStyle = `rgba(0, 0, 0, ${shadowOpacity})`;
             this.context.arc(e.x + 1, e.y + 1, 0.45 * audioInfluencedRadius, 0, Math.PI * 2, true);
             this.context.closePath();

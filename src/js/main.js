@@ -24,6 +24,8 @@ class MediaVisualizer {
         this.loadingProgress = document.querySelector('.loading-progress');
         this.loadingText = document.querySelector('.loading-text');
         
+        this.clickToStartShown = false;
+        
         // Show loading indicator
         this.showLoadingIndicator();
         
@@ -35,8 +37,8 @@ class MediaVisualizer {
             });
             console.log('Audio loaded successfully');
             this.hideLoadingIndicator();
-            // Auto-start audio playback
-            await this.audioPlayer.play();
+            // Wait for user interaction before starting audio
+            this.showClickToStart();
         } catch (error) {
             console.warn('Could not load audio file:', error);
             this.loadingText.textContent = 'Audio load failed';
@@ -61,6 +63,27 @@ class MediaVisualizer {
         this.loadingProgress.style.width = `${percentage}%`;
         this.loadingText.textContent = `Loading audio... ${percentage}%`;
     }
+    
+    showClickToStart() {
+        this.clickToStartShown = true;
+        this.loadingIndicator.classList.remove('loading-hidden');
+        this.loadingProgress.style.width = '100%';
+        this.loadingText.textContent = 'Click anywhere or press SPACE to start';
+    }
+    
+    async startAudio() {
+        if (!this.clickToStartShown) return;
+        
+        this.clickToStartShown = false;
+        this.hideLoadingIndicator();
+        
+        try {
+            await this.audioPlayer.play();
+            console.log('Audio started after user interaction');
+        } catch (error) {
+            console.warn('Failed to start audio:', error);
+        }
+    }
 
     setupEventListeners() {
         // Mouse movement tracking
@@ -77,9 +100,27 @@ class MediaVisualizer {
         document.addEventListener('keydown', (event) => {
             this.handleKeyPress(event);
         });
+        
+        // Click to start audio (required for browser autoplay policy)
+        document.addEventListener('click', async (event) => {
+            if (this.clickToStartShown) {
+                await this.startAudio();
+            }
+        });
+        
+        // Spacebar to start audio (alternative to click)
+        document.addEventListener('keydown', async (event) => {
+            if (event.code === 'Space' && this.clickToStartShown) {
+                event.preventDefault();
+                await this.startAudio();
+            }
+        });
     }
 
     handleKeyPress(event) {
+        // Only handle these keys after audio has started
+        if (this.clickToStartShown) return;
+        
         switch (event.code) {
             case 'Space':
                 event.preventDefault();

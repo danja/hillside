@@ -12,6 +12,14 @@ export class AudioPlayer {
         this.bassRange = { start: 0, end: 8 };
         this.midRange = { start: 8, end: 32 };
         this.trebleRange = { start: 32, end: 128 };
+        
+        // Beat detection properties (50-200 BPM range)
+        this.beatHistory = [];
+        this.beatThreshold = 1.2; // Multiplier for beat detection sensitivity
+        this.lastBeatTime = 0;
+        this.minBeatInterval = 300; // 200 BPM = 300ms minimum interval
+        this.maxBeatInterval = 1200; // 50 BPM = 1200ms maximum interval
+        this.beatDetected = false;
     }
 
     async initialize() {
@@ -143,15 +151,59 @@ export class AudioPlayer {
         return sum / (frequencyData.length * 255);
     }
 
+    // Simple beat detection using bass energy and timing constraints
+    detectBeat() {
+        const currentTime = Date.now();
+        const bassLevel = this.getBassLevel();
+        
+        // Reset beat detection flag
+        this.beatDetected = false;
+        
+        // Add current bass level to history (keep last 10 samples for average)
+        this.beatHistory.push(bassLevel);
+        if (this.beatHistory.length > 10) {
+            this.beatHistory.shift();
+        }
+        
+        // Calculate average of recent bass levels
+        const averageBass = this.beatHistory.reduce((sum, level) => sum + level, 0) / this.beatHistory.length;
+        
+        // Detect beat if current bass exceeds threshold and timing constraints are met
+        const timeSinceLastBeat = currentTime - this.lastBeatTime;
+        if (bassLevel > averageBass * this.beatThreshold && 
+            timeSinceLastBeat >= this.minBeatInterval && 
+            timeSinceLastBeat <= this.maxBeatInterval) {
+            this.beatDetected = true;
+            this.lastBeatTime = currentTime;
+        }
+        
+        return this.beatDetected;
+    }
+    
+    // Get beat intensity for brightness pulsing (0-1 range)
+    getBeatIntensity() {
+        const timeSinceLastBeat = Date.now() - this.lastBeatTime;
+        if (timeSinceLastBeat < 150) { // Beat pulse lasts 150ms
+            // Exponential decay from beat moment
+            return Math.exp(-timeSinceLastBeat / 50) * 1.0; // Max 1.0 additional brightness
+        }
+        return 0;
+    }
+
     // Get audio analysis object for easy consumption by visualization
     getAudioAnalysis() {
         if (!this.isPlaying) return null;
+        
+        // Perform beat detection
+        this.detectBeat();
         
         return {
             bass: this.getBassLevel(),
             mid: this.getMidLevel(),
             treble: this.getTrebleLevel(),
             overall: this.getOverallLevel(),
+            beatDetected: this.beatDetected,
+            beatIntensity: this.getBeatIntensity(),
             frequencyData: this.getFrequencyData(),
             timeDomainData: this.getTimeDomainData()
         };
