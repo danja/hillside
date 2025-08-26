@@ -25,6 +25,7 @@ class MediaVisualizer {
         this.loadingText = document.querySelector('.loading-text');
         
         this.clickToStartShown = false;
+        this.audioLoaded = false;
         
         // Show loading indicator
         this.showLoadingIndicator();
@@ -36,7 +37,7 @@ class MediaVisualizer {
                 this.updateLoadingProgress(progress);
             });
             console.log('Audio loaded successfully');
-            this.hideLoadingIndicator();
+            this.audioLoaded = true;
             // Wait for user interaction before starting audio
             this.showClickToStart();
         } catch (error) {
@@ -59,6 +60,9 @@ class MediaVisualizer {
     }
 
     updateLoadingProgress(progress) {
+        // Don't update progress if audio has already loaded
+        if (this.audioLoaded) return;
+        
         const percentage = Math.round(progress * 100);
         this.loadingProgress.style.width = `${percentage}%`;
         this.loadingText.textContent = `Loading audio... ${percentage}%`;

@@ -20,6 +20,10 @@ export class CellularAutomataSimulation {
         this.midInfluence = 0.0;
         this.trebleInfluence = 0.0;
         
+        // Time-based density variation
+        this.startTime = Date.now();
+        this.baseDensity = 1.0;
+        
         this.initializeNodes();
         this.setupForces();
     }
@@ -66,6 +70,15 @@ export class CellularAutomataSimulation {
             this.beatIntensity = 0;
         }
     }
+    
+    // Calculate time-based density variation (slow oscillation over ~30 seconds)
+    getTimeDensity() {
+        const elapsed = (Date.now() - this.startTime) / 1000; // seconds
+        const cyclePeriod = 30; // 30-second cycles
+        const densityWave = Math.sin(elapsed * 2 * Math.PI / cyclePeriod);
+        // Density varies between 0.5 and 1.5
+        return this.baseDensity + (densityWave * 0.5);
+    }
 
     draw() {
         this.updateAudioInfluence();
@@ -86,13 +99,18 @@ export class CellularAutomataSimulation {
         let indc = [];
         let t;
         
+        // Get time-based density for interaction distance
+        const timeDensity = this.getTimeDensity();
+        
         // Process all node interactions (matching original exactly)
         this.nodes.forEach((e, i) => {
             this.nodes.forEach((e2, i2) => {
                 e.size *= 0.999;
                 if (i !== i2) {
                     const d = distance(e, e2);
-                    if (d < 19 * (e.size + e2.size) && !indc[Math.max(i, i2) + '_' + Math.min(i, i2)]) {
+                    // Apply time-based density variation to interaction distance
+                    const interactionDistance = 19 * (e.size + e2.size) * timeDensity;
+                    if (d < interactionDistance && !indc[Math.max(i, i2) + '_' + Math.min(i, i2)]) {
                         indc[Math.max(i, i2) + '_' + Math.min(i, i2)] = true;
                         t = e.size < e2.size ? e : e2;
                         // Audio-reactive line width: bass increases thickness
