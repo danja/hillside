@@ -25,7 +25,7 @@ export class AudioPlayer {
         }
     }
 
-    async loadAudio(audioUrl) {
+    async loadAudio(audioUrl, progressCallback = null) {
         await this.initialize();
         
         this.audio = new Audio(audioUrl);
@@ -35,8 +35,29 @@ export class AudioPlayer {
         this.analyser.connect(this.audioContext.destination);
         
         return new Promise((resolve, reject) => {
-            this.audio.addEventListener('canplaythrough', resolve);
+            // Track loading progress
+            this.audio.addEventListener('progress', () => {
+                if (this.audio.buffered.length > 0 && progressCallback) {
+                    const buffered = this.audio.buffered.end(this.audio.buffered.length - 1);
+                    const duration = this.audio.duration || 1;
+                    const progress = Math.min(buffered / duration, 1);
+                    progressCallback(progress);
+                }
+            });
+
+            this.audio.addEventListener('loadedmetadata', () => {
+                if (progressCallback) progressCallback(0.1); // At least show some progress
+            });
+
+            this.audio.addEventListener('canplaythrough', () => {
+                if (progressCallback) progressCallback(1.0); // Complete
+                resolve();
+            });
+            
             this.audio.addEventListener('error', reject);
+            
+            // Force load start
+            this.audio.load();
         });
     }
 

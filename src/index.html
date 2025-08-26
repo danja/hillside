@@ -6,7 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hillside Media Visualizer</title>
     <link rel="stylesheet" href="./css/styles.css">
-    <!-- Load D3 libraries via script tags to establish global d3 object -->
+</head>
+<body id="body">
+    <!-- Load D3 libraries via script tags to establish global d3 object BEFORE module script -->
     <script src="./lib/d3.min.js"></script>
     <script src="./lib/d3-color.min.js"></script>
     <script src="./lib/d3-interpolate.min.js"></script>
@@ -17,9 +19,17 @@
     <script src="./lib/d3-scale.min.js"></script>
     <script src="./lib/d3-scale-chromatic.min.js"></script>
     <script src="./lib/d3-force.min.js"></script>
-</head>
-<body id="body">
+    
     <canvas id="c"></canvas>
+    
+    <!-- Discrete loading indicator -->
+    <div id="loading-indicator" class="loading-hidden">
+        <div class="loading-bar">
+            <div class="loading-progress"></div>
+        </div>
+        <div class="loading-text">Loading audio...</div>
+    </div>
+    
     <script type="module" src="./js/main.js"></script>
 </body>
 </html>

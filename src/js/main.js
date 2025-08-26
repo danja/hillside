@@ -19,14 +19,47 @@ class MediaVisualizer {
         this.resize();
         this.startSimulation();
         
-        // Initialize and load audio
+        // Initialize loading indicator
+        this.loadingIndicator = document.getElementById('loading-indicator');
+        this.loadingProgress = document.querySelector('.loading-progress');
+        this.loadingText = document.querySelector('.loading-text');
+        
+        // Show loading indicator
+        this.showLoadingIndicator();
+        
+        // Initialize and load audio with progress tracking
         await this.audioPlayer.initialize();
         try {
-            await this.audioPlayer.loadAudio('./hillside_2025-08-26.wav');
+            await this.audioPlayer.loadAudio('hillside_2025-08-26.mp3', (progress) => {
+                this.updateLoadingProgress(progress);
+            });
             console.log('Audio loaded successfully');
+            this.hideLoadingIndicator();
+            // Auto-start audio playback
+            await this.audioPlayer.play();
         } catch (error) {
             console.warn('Could not load audio file:', error);
+            this.loadingText.textContent = 'Audio load failed';
+            setTimeout(() => this.hideLoadingIndicator(), 2000);
         }
+    }
+
+    showLoadingIndicator() {
+        this.loadingIndicator.classList.remove('loading-hidden');
+    }
+
+    hideLoadingIndicator() {
+        this.loadingIndicator.classList.add('loading-hidden');
+        // Ensure indicator is fully hidden after transition
+        setTimeout(() => {
+            this.loadingIndicator.style.display = 'none';
+        }, 400);
+    }
+
+    updateLoadingProgress(progress) {
+        const percentage = Math.round(progress * 100);
+        this.loadingProgress.style.width = `${percentage}%`;
+        this.loadingText.textContent = `Loading audio... ${percentage}%`;
     }
 
     setupEventListeners() {
@@ -62,8 +95,10 @@ class MediaVisualizer {
     async toggleAudio() {
         if (this.audioPlayer.isPlaying) {
             this.audioPlayer.pause();
+            this.simulation.stop();
         } else {
             await this.audioPlayer.play();
+            this.simulation.start();
         }
     }
 
