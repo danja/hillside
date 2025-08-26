@@ -19,8 +19,14 @@ class MediaVisualizer {
         this.resize();
         this.startSimulation();
         
-        // Initialize audio player
+        // Initialize and load audio
         await this.audioPlayer.initialize();
+        try {
+            await this.audioPlayer.loadAudio('./hillside_2025-08-26.wav');
+            console.log('Audio loaded successfully');
+        } catch (error) {
+            console.warn('Could not load audio file:', error);
+        }
     }
 
     setupEventListeners() {
@@ -57,9 +63,7 @@ class MediaVisualizer {
         if (this.audioPlayer.isPlaying) {
             this.audioPlayer.pause();
         } else {
-            // For demo purposes, you can add audio file loading here
-            // await this.audioPlayer.loadAudio('../audio/your-audio-file.wav');
-            this.audioPlayer.play();
+            await this.audioPlayer.play();
         }
     }
 
@@ -78,27 +82,16 @@ class MediaVisualizer {
             this.canvas,
             this.context,
             width,
-            height
+            height,
+            this.audioPlayer  // Pass audio player to simulation
         );
         
         this.simulation.start();
-    }
-
-    // Method to integrate audio data with visualization
-    updateVisualizationWithAudio() {
-        const frequencyData = this.audioPlayer.getFrequencyData();
-        if (frequencyData && this.simulation) {
-            // You can modify the simulation based on audio data
-            // For example, affect node sizes or colors based on frequency
-            const avgFrequency = frequencyData.reduce((sum, val) => sum + val, 0) / frequencyData.length;
-            
-            // This is where you can implement audio-reactive features
-            // Example: modify node behavior based on audio amplitude
-        }
     }
 }
 
 // Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    new MediaVisualizer();
+    window.mediaVisualizer = new MediaVisualizer();
+    console.log('MediaVisualizer initialized:', window.mediaVisualizer);
 });
