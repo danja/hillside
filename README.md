@@ -2,9 +2,12 @@
 
 A media player and visualizer using cellular automata for generative visuals.
 
-The [algorithm](docs/algorithm.md)
+**[Demo](https://danja.github.io/hillside/)**
 
-Starting point was https://codepen.io/Power-Flower/pen/GgRowgg
+The [algorithm](docs/algorithm.md).
+
+Starting point was https://codepen.io/Power-Flower/pen/GgRowgg (via Reddit, either r/generative or r/cellularautomata I've lost the original post).
+Named after the first thing I saw when I looked out of the window.
 
 ## Features
 
