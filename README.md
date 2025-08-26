@@ -1,6 +1,8 @@
 # Hillside Media Visualizer
 
-A modern media player and visualizer using cellular automata for generative visuals.
+A media player and visualizer using cellular automata for generative visuals.
+
+The [algorithm](docs/algorithm.md)
 
 Starting point was https://codepen.io/Power-Flower/pen/GgRowgg
 
