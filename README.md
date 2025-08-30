@@ -1,17 +1,17 @@
 # Hillside Media Visualizer
 
-An interactive media player and dual-visualization system featuring cellular automata and flocking boids with audio-reactive effects.
+An interactive media player and triple-visualization system featuring cellular automata, flocking boids, and abelian sandpile with audio-reactive effects.
 
 **[Demo](https://danja.github.io/hillside/)**
 
-The [algorithms](docs/algorithms.md) - detailed documentation for both visualization systems.
+The [algorithms](docs/algorithms.md) - detailed documentation for all three visualization systems.
 
 
 ## Features
 
 ### Core System
 - 🎵 Advanced audio player with Web Audio API integration and frequency analysis
-- 🔄 Dual-visualization system with seamless switching
+- 🔄 Triple-visualization system with seamless switching
 - 🎮 Interactive navigation menu for visualization selection
 - 📱 Responsive design that adapts to screen size
 - ⚡ Built with Vite for fast development and builds
@@ -30,6 +30,14 @@ The [algorithms](docs/algorithms.md) - detailed documentation for both visualiza
 - 🎯 Health/damage system with visual size scaling
 - 🌈 Bass-responsive color flashing
 - 🏃 Audio-reactive movement speeds and behaviors
+
+### Road Visualization (Abelian Sandpile)
+- 🏔️ Mathematical sandpile model with self-organized criticality
+- 🌪️ Cascading avalanche effects from concentrated sand piles
+- 🎵 Bass-driven sand avalanches and treble earthquakes
+- 🎨 Dynamic color mapping with audio-reactive shifts
+- ✨ Strategic pile locations for dramatic fractal patterns
+- ⚡ High-frequency sand addition for continuous activity
 
 ## Architecture Overview
 
@@ -52,6 +60,9 @@ src/
 │   ├── boids/                   # Roofs visualization
 │   │   ├── simulation.js        # Flocking simulation with electric arcs
 │   │   └── boid.js              # Individual boid agent
+│   ├── sandpile/                # Road visualization
+│   │   ├── simulation.js        # Abelian sandpile implementation
+│   │   └── cell.js              # Individual grid cell
 │   ├── navigation/              # UI navigation system
 │   │   └── menu.js              # Menu handling and visualization switching
 │   ├── media/                   # Audio system
@@ -65,6 +76,7 @@ tests/                           # Comprehensive test suite (90+ tests)
 ├── base/                        # Base class tests
 ├── boids/                       # Boids system tests
 ├── cellular-automata/           # Cellular automata tests
+├── sandpile/                    # Sandpile system tests
 ├── navigation/                  # Navigation menu tests
 ├── media/                       # Audio player tests
 └── utils/                       # Utility function tests
@@ -74,7 +86,8 @@ docs/                            # Documentation
 
 public/                          # Static assets and audio files
 ├── hillside_2025-08-26.mp3    # Hillside visualization audio
-└── roofs.mp3                   # Roofs visualization audio
+├── roofs.mp3                   # Roofs visualization audio
+└── fish-march.mp3              # Road visualization audio
 ```
 
 ## Getting Started
@@ -123,7 +136,7 @@ npm run test:ui
 ## Usage
 
 ### Navigation
-- **Menu Buttons**: Click "Hillside" or "Roofs" to switch visualizations
+- **Menu Buttons**: Click "Hillside", "Roofs", or "Road" to switch visualizations
 - **Auto-Start**: Audio automatically starts when switching visualizations
 
 ### Audio Controls
@@ -145,6 +158,7 @@ npm run test:ui
 ### Visualization Technologies
 - **Hillside**: D3.js force simulation, scales, and color palettes
 - **Roofs**: Custom flocking algorithm implementation
+- **Road**: Abelian sandpile cellular automaton with strategic pile concentration
 - **Graphics**: HTML5 Canvas 2D rendering
 - **Animation**: RequestAnimationFrame for smooth 60fps performance
 
@@ -166,6 +180,7 @@ npm run test:ui
 - **Dependencies**: All remote dependencies stored locally in `src/lib/` for reliability
 - **Physics**: D3's force simulation powers the Hillside cellular automata
 - **Custom Algorithms**: Hand-coded flocking algorithms and electric arc systems for Roofs
+- **Mathematical Models**: Abelian sandpile with self-organized criticality for Road
 - **Performance**: Optimized for 60fps with efficient spatial calculations and rendering
 - **Audio Latency**: Sub-25ms response times for real-time audio-visual synchronization
 
