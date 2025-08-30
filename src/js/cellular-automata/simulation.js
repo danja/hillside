@@ -1,27 +1,15 @@
 // D3 libraries are loaded globally via script tags in index.html
 import { Node } from './node.js';
 import { distance } from '../utils/math.js';
+import { BaseSimulation } from '../base/base-simulation.js';
 
-export class CellularAutomataSimulation {
+export class CellularAutomataSimulation extends BaseSimulation {
     constructor(canvas, context, width, height, audioPlayer = null) {
-        this.canvas = canvas;
-        this.context = context;
-        this.width = width;
-        this.height = height;
-        this.audioPlayer = audioPlayer;
-        this.nodes = [];
-        this.rafId = null;
-        this.counter = 0;
+        super(canvas, context, width, height, audioPlayer);
         
-        // Audio-reactive parameters
+        // Cellular automata specific parameters
         this.baseAlpha = 0.5;
         this.audioMultiplier = 3.0;
-        this.bassInfluence = 0.0;
-        this.midInfluence = 0.0;
-        this.trebleInfluence = 0.0;
-        
-        // Time-based density variation
-        this.startTime = Date.now();
         this.baseDensity = 1.0;
         
         this.initializeNodes();
@@ -57,23 +45,9 @@ export class CellularAutomataSimulation {
             .force("center", center);
     }
 
-    updateAudioInfluence() {
-        if (this.audioPlayer) {
-            const audioAnalysis = this.audioPlayer.getAudioAnalysis();
-            if (audioAnalysis) {
-                this.bassInfluence = audioAnalysis.bass;
-                this.midInfluence = audioAnalysis.mid;
-                this.trebleInfluence = audioAnalysis.treble;
-                this.beatIntensity = audioAnalysis.beatIntensity;
-            }
-        } else {
-            this.beatIntensity = 0;
-        }
-    }
-    
     // Calculate time-based density variation (slow oscillation over ~30 seconds)
     getTimeDensity() {
-        const elapsed = (Date.now() - this.startTime) / 1000; // seconds
+        const elapsed = this.getElapsedTime();
         const cyclePeriod = 30; // 30-second cycles
         const densityWave = Math.sin(elapsed * 2 * Math.PI / cyclePeriod);
         // Density varies between 0.5 and 1.5
@@ -81,17 +55,8 @@ export class CellularAutomataSimulation {
     }
 
     draw() {
-        this.updateAudioInfluence();
-        
-        // Draw black background first
-        this.context.globalAlpha = 1.0;
-        this.context.fillStyle = '#000';
-        this.context.fillRect(0, 0, this.width, this.height);
-        
-        // Apply beat-driven brightness pulsing to visualization elements
-        const baseBrightness = 1.0;
-        const beatBrightness = this.beatIntensity || 0;
-        this.context.globalAlpha = baseBrightness + beatBrightness;
+        // Use base class frame setup (handles audio influence and beat pulsing)
+        // Note: setupFrame is called by base class animate() method
 
         this.context.strokeStyle = '#ffffff80';
         this.context.lineWidth = 0.51;
@@ -196,36 +161,11 @@ export class CellularAutomataSimulation {
         this.simulation.alpha(audioReactiveAlpha);
     }
 
-    animate() {
-        this.counter += 0.1;
-        window.cancelAnimationFrame(this.rafId);
-        this.rafId = window.requestAnimationFrame(() => this.animate());
-        
-        if (this.context) {
-            this.draw();
-        }
-    }
-
-    resize(width, height) {
-        this.width = width;
-        this.height = height;
-        
+    // Override the base class resize handler
+    onResize(width, height) {
         if (this.simulation) {
             const center = d3.forceCenter(width / 2, height / 2).strength(0.163);
             this.simulation.force("center", center);
-        }
-        
-        this.draw();
-    }
-
-    start() {
-        this.animate();
-    }
-
-    stop() {
-        if (this.rafId) {
-            window.cancelAnimationFrame(this.rafId);
-            this.rafId = null;
         }
     }
 }

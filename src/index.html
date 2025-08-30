@@ -4,10 +4,16 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hillside Media Visualizer</title>
+    <title>Media Visualizer</title>
     <link rel="stylesheet" href="./css/styles.css">
 </head>
 <body id="body">
+    <!-- Navigation Menu -->
+    <nav id="visualization-menu" class="menu">
+        <button id="hillside-btn" class="menu-btn active" data-visualization="hillside">Hillside</button>
+        <button id="roofs-btn" class="menu-btn" data-visualization="roofs">Roofs</button>
+    </nav>
+
     <!-- Load D3 libraries via script tags to establish global d3 object BEFORE module script -->
     <script src="./lib/d3.min.js"></script>
     <script src="./lib/d3-color.min.js"></script>

@@ -91,14 +91,19 @@ describe('CellularAutomataSimulation', () => {
 
   it('should start and stop animation correctly', () => {
     // Mock requestAnimationFrame and cancelAnimationFrame
-    global.requestAnimationFrame = vi.fn(cb => setTimeout(cb, 16))
+    let frameId = 1
+    global.requestAnimationFrame = vi.fn(cb => {
+      setTimeout(cb, 16)
+      return frameId++
+    })
     global.cancelAnimationFrame = vi.fn()
 
     simulation.start()
     expect(simulation.rafId).toBeDefined()
 
+    const originalRafId = simulation.rafId
     simulation.stop()
-    expect(global.cancelAnimationFrame).toHaveBeenCalledWith(simulation.rafId)
+    expect(global.cancelAnimationFrame).toHaveBeenCalledWith(originalRafId)
     expect(simulation.rafId).toBeNull()
   })
 })

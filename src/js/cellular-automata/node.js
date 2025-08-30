@@ -1,14 +1,14 @@
 import { clamp } from '../utils/math.js';
+import { BaseNode } from '../base/base-node.js';
 
-export class Node {
+export class Node extends BaseNode {
     constructor(id, x, y, color) {
-        this.id = id;
-        this.x = x;
-        this.y = y;
+        super(id, x, y, color);
+        
+        // Cellular automata specific properties
         this.dx = 2 - (Math.random() * 4);
         this.dy = 2 - (Math.random() * 4);
         this.size = 1 + Math.random() * 3;
-        this.color = color;
         this.vx = 0;
         this.vy = 0;
     }
