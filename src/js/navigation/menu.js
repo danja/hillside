@@ -34,7 +34,10 @@ export class MenuManager {
             // Update active button
             this.updateActiveButton(button);
             
-            console.log(`Switched to ${visualizationType} visualization`);
+            // Start audio automatically after switching
+            await this.visualizationManager.startAudio();
+            
+            console.log(`Switched to ${visualizationType} visualization and started audio`);
         } catch (error) {
             console.error(`Failed to switch to ${visualizationType}:`, error);
         } finally {
