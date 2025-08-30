@@ -6,11 +6,13 @@ export class BoidsSimulation extends BaseSimulation {
         super(canvas, context, width, height, audioPlayer);
         
         // Boids-specific parameters
-        this.boidCount = width > 1024 ? 80 : 50; // Fewer boids than cellular automata nodes
+        this.boidCount = width > 1024 ? 55 : 35; // Reduced by 1/3 for better performance
         this.electricArcDistance = 50;
         this.electricArcProbability = 0.15; // Base chance per frame when boids are close
         this.lastArcTime = 0;
-        this.arcCooldown = 50; // Minimum ms between arcs
+        this.lastLongArcTime = 0;
+        this.arcCooldown = 25; // Reduced for better responsiveness
+        this.longArcCooldown = 10; // Very short cooldown for long-distance arcs
         
         // Electric arc visual properties
         this.activeArcs = [];
@@ -95,7 +97,7 @@ export class BoidsSimulation extends BaseSimulation {
             return;
         }
         
-        // Check for long-distance arcs on treble peaks first
+        // Check for long-distance arcs on treble peaks first (separate cooldown)
         const trebleLevel = audioInfluence.treble || 0;
         
         // Debug: log treble levels occasionally
@@ -105,10 +107,11 @@ export class BoidsSimulation extends BaseSimulation {
         
         const isTreblePeak = trebleLevel > 0.5; // Lower threshold for treble peaks
         
-        if (isTreblePeak && Math.random() < 0.1) {
+        if (isTreblePeak && Math.random() < 0.1 && (currentTime - this.lastLongArcTime > this.longArcCooldown)) {
             // Create dramatic long-distance arc during audio peaks
             this.createLongDistanceArc(audioInfluence);
-            this.lastArcTime = currentTime;
+            this.lastLongArcTime = currentTime;
+            this.lastArcTime = currentTime; // Also update regular arc timer
             return;
         }
         
