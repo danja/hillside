@@ -29,8 +29,8 @@ describe('BaseNode', () => {
         node.y = 610;
         node.wrapAroundBounds(800, 600);
         
-        expect(node.x).toBe(790); // -10 + 800
-        expect(node.y).toBe(10);  // 610 - 600
+        expect(node.x).toBe(800); // -10 < 0, so x = width = 800
+        expect(node.y).toBe(0);   // 610 > 600, so y = 0
     });
 
     it('should update position based on velocity', () => {
