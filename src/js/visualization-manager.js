@@ -2,6 +2,7 @@ import { CellularAutomataSimulation } from './cellular-automata/simulation.js';
 import { BoidsSimulation } from './boids/simulation.js';
 import { SandpileSimulation } from './sandpile/simulation.js';
 import { CloudsSimulation } from './clouds/simulation.js';
+import { WireSimulation } from './wire/simulation.js';
 import { AudioPlayer } from './media/audio-player.js';
 import { getCanvasMousePosition, resizeCanvas } from './utils/dom.js';
 
@@ -31,7 +32,8 @@ export class VisualizationManager {
             hillside: 'hillside_2025-08-26.mp3',
             roofs: 'roofs.mp3',
             road: 'fish-march.mp3',
-            clouds: 'tecNO.mp3'
+            clouds: 'tecNO.mp3',
+            wire: 'wire.mp3'
         };
         
         this.initialize();
@@ -107,6 +109,11 @@ export class VisualizationManager {
                 break;
             case 'clouds':
                 this.currentVisualization = new CloudsSimulation(
+                    this.canvas, this.context, width, height, this.audioPlayer
+                );
+                break;
+            case 'wire':
+                this.currentVisualization = new WireSimulation(
                     this.canvas, this.context, width, height, this.audioPlayer
                 );
                 break;

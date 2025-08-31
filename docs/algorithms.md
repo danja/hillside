@@ -1,6 +1,6 @@
 # Visualization Algorithms
 
-This document describes the algorithms powering the interactive audio-reactive visualizations in the Hillside project. The system supports four distinct visualization modes: **Hillside** (cellular automata), **Roofs** (flocking boids), **Road** (abelian sandpile), and **Clouds** (dual cellular automata ecosystem).
+This document describes the algorithms powering the interactive audio-reactive visualizations in the Hillside project. The system supports five distinct visualization modes: **Hillside** (cellular automata), **Roofs** (flocking boids), **Road** (abelian sandpile), **Clouds** (dual cellular automata ecosystem), and **Wire** (3D rotating cubes).
 
 ---
 
@@ -744,3 +744,373 @@ This implementation represents several technical achievements:
 The Clouds visualization demonstrates how different computational models of life can coexist and interact, creating a rich digital ecosystem that responds to musical input while maintaining biological plausibility.
 
 Named after the cloud-like appearance of the flowing Lenia organisms as they drift and morph across the digital sky.
+
+---
+
+## Wire Visualization (3D Rotating Cubes)
+
+The fifth visualization implements a 3D cellular automata system featuring rotating cubes with perspective-correct anaglyph 3D effects, enhanced with audio-reactive behaviors and sophisticated size divergence mechanics to prevent convergence.
+
+### Core Concept
+
+The Wire visualization extends the cellular automata concept into true 3D space, where nodes are rendered as rotating geometric cubes instead of simple circles. Each cube exists in 3D coordinate space with proper perspective projection, depth-based anaglyph rendering, and complex 3D physics interactions.
+
+### 3D Node System
+
+#### CubeNode Properties
+Each cube in the simulation extends the base node system with 3D properties:
+```javascript
+// 3D spatial properties
+this.z = 50 + (Math.random() - 0.5) * 60;     // Z-depth: 20-80 range
+this.vz = (Math.random() - 0.5) * 0.5;       // Z-velocity for movement
+this.rotationX = 0;                           // X-axis rotation angle
+this.rotationY = 0;                           // Y-axis rotation angle  
+this.rotationZ = 0;                           // Z-axis rotation angle
+this.angularVelocityX = (Math.random() - 0.5) * 0.02;  // Rotation speeds
+this.angularVelocityY = (Math.random() - 0.5) * 0.02;
+this.angularVelocityZ = (Math.random() - 0.5) * 0.02;
+```
+
+#### Dramatic Size Variation System
+```javascript
+// Multi-tier size distribution for extreme variation
+const rand = Math.random();
+if (rand < 0.3) {
+    this.size = 2 + Math.random() * 5;    // 30% small cubes: 2-7
+} else if (rand < 0.7) {
+    this.size = 8 + Math.random() * 10;   // 40% medium cubes: 8-18
+} else {
+    this.size = 20 + Math.random() * 25;  // 30% large cubes: 20-45
+}
+```
+
+### 3D Physics System
+
+#### Custom 3D Force Engine
+The Wire visualization replaces D3's 2D physics with a custom 3D force system:
+
+```javascript
+apply3DForces() {
+    for (const node of this.nodes) {
+        // 3D center force - pulls toward center point in 3D space
+        const toCenterX = this.centerX - node.x;
+        const toCenterY = this.centerY - node.y;
+        const toCenterZ = this.centerZ - node.z;  // Z-axis center force
+        
+        node.vx += toCenterX * this.centerForceStrength;
+        node.vy += toCenterY * this.centerForceStrength;
+        node.vz += toCenterZ * this.centerForceStrength;
+        
+        // 3D position integration
+        node.x += node.vx;
+        node.y += node.vy;
+        node.z += node.vz;
+        
+        // 3D velocity damping with depth-specific rates
+        node.vx *= 0.95;
+        node.vy *= 0.95;
+        node.vz *= 0.98;  // Slower Z damping for more 3D movement
+    }
+}
+```
+
+#### 3D Inter-Node Interactions
+```javascript
+apply3DInterNodeForce(node1, node2) {
+    // True 3D distance calculation
+    const dx = node2.x - node1.x;
+    const dy = node2.y - node1.y;
+    const dz = node2.z - node1.z;
+    const distance3D = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    
+    // 3D normalized direction vector
+    const nx = dx / distance3D;
+    const ny = dy / distance3D;  
+    const nz = dz / distance3D;
+    
+    // Distance-based force calculation
+    if (distance3D < this.repulsionDistance) {
+        forceStrength = -this.repulsionStrength * (1 / (distance3D + 1));
+    } else if (distance3D < this.attractionDistance) {
+        forceStrength = this.attractionStrength * (node1.size + node2.size) * 0.1 / distance3D;
+    }
+    
+    // Apply 3D forces
+    node1.vx += nx * forceStrength;
+    node1.vy += ny * forceStrength;
+    node1.vz += nz * forceStrength;
+}
+```
+
+#### 3D Boundary Constraints
+```javascript
+// Soft boundary system with bouncing
+if (node.z > 100) {
+    node.z = 100;
+    node.vz = -Math.abs(node.vz) * 0.8;  // Bounce back softly
+} else if (node.z < 10) {
+    node.z = 10;
+    node.vz = Math.abs(node.vz) * 0.8;   // Bounce back softly
+}
+```
+
+### Advanced 3D Cube Rendering
+
+#### True 3D Geometry System
+The cubes are rendered using proper 3D vertex transformation and projection:
+
+```javascript
+render3DCubeGeometry(centerX, centerY, cubeSize, node, r, g, b, alpha) {
+    // Apply 3D rotation matrices
+    const cos_x = Math.cos(node.rotationX);
+    const sin_x = Math.sin(node.rotationX);
+    const cos_y = Math.cos(node.rotationY);
+    const sin_y = Math.sin(node.rotationY);
+    const cos_z = Math.cos(node.rotationZ);
+    const sin_z = Math.sin(node.rotationZ);
+    
+    // Define cube vertices in 3D space
+    const vertices = [
+        [-halfSize, -halfSize, -halfSize], // 8 cube vertices
+        [halfSize, -halfSize, -halfSize],
+        [halfSize, halfSize, -halfSize],
+        // ... (full cube geometry)
+    ];
+    
+    // Transform each vertex through 3D rotation
+    const projected = vertices.map(([x, y, z]) => {
+        // X-axis rotation
+        let y1 = y * cos_x - z * sin_x;
+        let z1 = y * sin_x + z * cos_x;
+        
+        // Y-axis rotation  
+        let x2 = x * cos_y + z1 * sin_y;
+        let z2 = -x * sin_y + z1 * cos_y;
+        
+        // Z-axis rotation
+        let x3 = x2 * cos_z - y1 * sin_z;
+        let y3 = x2 * sin_z + y1 * cos_z;
+        
+        // Orthographic projection to 2D
+        return [centerX + x3, centerY + y3, z2];
+    });
+}
+```
+
+#### Depth Sorting and Face Culling
+```javascript
+// Define faces with proper winding order
+const faces = [
+    [0, 1, 2, 3], // front, back, left, right, top, bottom faces
+    [5, 4, 7, 6],
+    [4, 0, 3, 7],
+    [1, 5, 6, 2],
+    [3, 2, 6, 7],
+    [4, 5, 1, 0]
+];
+
+// Sort faces by depth (painter's algorithm)
+const faceDepths = faces.map((face, i) => {
+    const avgZ = face.reduce((sum, vertexIndex) => 
+        sum + projected[vertexIndex][2], 0) / face.length;
+    return { face, brightness: faceBrightness[i], depth: avgZ };
+});
+
+faceDepths.sort((a, b) => a.depth - b.depth); // Back to front rendering
+```
+
+### Perspective-Correct Anaglyph 3D System
+
+#### Depth-Based Anaglyph Calculation
+```javascript
+renderCubeWithAnaglyph(centerX, centerY, cubeSize, colorValue, alpha, node) {
+    // Perspective-correct offset calculation
+    const perspectiveScale = 300 / (300 + node.z);  // Closer = larger offset
+    const offset = this.anaglyphOffset * perspectiveScale * 2;
+    
+    // Depth-based intensity variation
+    const anaglyphIntensity = 0.6 + (perspectiveScale * 0.4); // 0.6-1.0 range
+    
+    // Render red channel (left eye) - shifted left
+    this.context.globalAlpha = alpha * anaglyphIntensity;
+    this.render3DCubeGeometry(centerX - offset, centerY, cubeSize, node, colorValue, 0, 0, alpha);
+    
+    // Render cyan channel (right eye) - shifted right with additive blending
+    this.context.globalCompositeOperation = 'lighter';
+    this.context.globalAlpha = alpha * anaglyphIntensity;
+    this.render3DCubeGeometry(centerX + offset, centerY, cubeSize, node, 0, colorValue * 0.8, colorValue * 0.8, alpha);
+}
+```
+
+#### 3D Depth Relationships
+- **Near cubes (Z ≈ 10-30)**: Large anaglyph separation, high intensity
+- **Mid-distance cubes (Z ≈ 40-70)**: Moderate separation and intensity  
+- **Far cubes (Z ≈ 80-100)**: Small separation, subtle 3D effect
+
+### Audio-Reactive Size Divergence System
+
+#### Peak-Driven Size Divergence
+```javascript
+updateNodesWithAudio() {
+    const totalAudioEnergy = (this.bassInfluence || 0) + (this.midInfluence || 0) + (this.trebleInfluence || 0);
+    const isAudioPeak = totalAudioEnergy > 0.7 || (this.beatIntensity || 0) > 0.3;
+    
+    if (isAudioPeak) {
+        for (const node of this.nodes) {
+            const nodeRandomSeed = (node.id * 0.618034) % 1; // Golden ratio distribution
+            const peakIntensity = totalAudioEnergy + (this.beatIntensity || 0);
+            
+            if (nodeRandomSeed < 0.2) {
+                // 20% grow dramatically large
+                node.size += peakIntensity * 15 * (nodeRandomSeed + 0.5);
+            } else if (nodeRandomSeed < 0.4) {
+                // 20% shrink for contrast
+                node.size *= 0.7 - peakIntensity * 0.3;
+            } else if (nodeRandomSeed < 0.6) {
+                // 20% moderate growth
+                node.size += peakIntensity * 8 * nodeRandomSeed;
+            }
+            // 40% remain unchanged for balance
+        }
+    }
+}
+```
+
+#### Periodic Size Divergence Prevention
+```javascript
+handleSizeDivergence() {
+    // Track convergence through size range analysis
+    const sizes = this.nodes.map(node => node.size);
+    const sizeRange = Math.max(...sizes) - Math.min(...sizes);
+    const avgSize = sizes.reduce((sum, size) => sum + size, 0) / sizes.length;
+    
+    // Force divergence if range < 30% of average (too similar)
+    const shouldForceDivergence = sizeRange < (avgSize * 0.3);
+    
+    if (shouldForceDivergence && timeSinceLastDivergence > 3000) {
+        this.performSizeDivergence(avgAudioEnergy);
+    }
+}
+
+performSizeDivergence(audioEnergy) {
+    const divergenceStrength = 0.5 + audioEnergy * 1.5;
+    
+    for (const node of this.nodes) {
+        const nodeRandom = (node.id * 0.618034) % 1;
+        
+        if (nodeRandom < 0.25) {
+            node.size *= 1.2 + (divergenceStrength * nodeRandom * 2);      // 25% grow
+        } else if (nodeRandom < 0.5) {
+            node.size *= Math.max(0.3, 0.7 - divergenceStrength * 0.3);   // 25% shrink
+        } else if (nodeRandom < 0.75) {
+            node.size += divergenceStrength * 10 * nodeRandom;            // 25% dramatic
+        }
+        // 25% unchanged for stability
+    }
+}
+```
+
+### Audio Reactivity Features
+
+#### Multi-Frequency Response System
+- **Bass Response**:
+  - Increases cube rotation chaos
+  - Triggers size growth effects
+  - Enhances 3D force interactions
+
+- **Mid-Range Response**:
+  - Controls rhythmic rotation patterns
+  - Affects growth interaction rates
+  - Modulates perspective scaling
+
+- **Treble Response**:
+  - Adds rapid spin effects to cubes
+  - Influences Z-axis movement patterns
+  - Affects grayscale brightness modulation
+
+- **Beat Intensity**:
+  - Triggers immediate size pulsing
+  - Amplifies all audio-reactive effects
+  - Creates synchronized visual beats
+
+#### Rotation Chaos System
+```javascript
+// Audio affects rotation in different ways per frequency
+if (this.bassInfluence > 0) {
+    const bassImpact = this.bassInfluence * 0.03;
+    node.angularVelocityX += bassImpact * (Math.random() - 0.5);
+    node.angularVelocityY += bassImpact * (Math.random() - 0.5);
+}
+
+if (this.trebleInfluence > 0) {
+    const trebleImpact = this.trebleInfluence * 0.05;
+    node.angularVelocityZ += trebleImpact * (Math.random() - 0.5);
+}
+
+if (this.midInfluence > 0) {
+    const midImpact = this.midInfluence * 0.02;
+    node.angularVelocityX += midImpact * Math.sin(this.getElapsedTime() * 0.01 + node.id);
+    node.angularVelocityY += midImpact * Math.cos(this.getElapsedTime() * 0.01 + node.id);
+}
+```
+
+### Visual Design
+
+#### Grayscale Aesthetic
+- **Color Scheme**: Pure grayscale (0.1-0.9 range) for industrial/electronic feel
+- **Face Lighting**: Different brightness per cube face (top: 1.3x, left: 0.8x, right: 0.5x)
+- **Audio Modulation**: Treble frequencies brighten cubes dynamically
+
+#### Shadow System
+- **3D Shadows**: Shadows use same geometry as cubes, rotated identically
+- **Offset**: 2-pixel offset creates depth perception
+- **Color**: Dark gray (#111) with reduced alpha for subtlety
+
+#### Performance Optimizations
+- **Culling**: Skip rendering cubes smaller than 0.1 apparent size
+- **Rotation Bounds**: Keep rotations within 0-2π to prevent overflow
+- **Size Clamping**: Limit cube sizes to 1-100 range for stability
+- **Decay Rate**: Extremely slow (0.99995) to preserve size differences
+
+### Technical Innovation
+
+The Wire visualization represents several technical achievements:
+
+1. **True 3D Cellular Automata**: First implementation combining CA with full 3D geometry
+2. **Perspective-Correct Anaglyph**: Proper depth-based stereoscopic rendering
+3. **Dynamic Size Anti-Convergence**: Automatic system to prevent visual uniformity
+4. **3D Audio-Force Coupling**: Music directly influences 3D physics parameters
+5. **Vertex-Level Cube Rendering**: Real-time 3D transformation and projection
+6. **Multi-Tier Size Distribution**: Intelligent size variation for visual contrast
+
+### Mathematical Foundation
+
+#### 3D Transformation Matrices
+The cube rendering uses standard 3D rotation matrices:
+```
+Rx(θ) = [1   0      0    ]
+        [0  cos(θ) -sin(θ)]
+        [0  sin(θ)  cos(θ)]
+
+Ry(θ) = [cos(θ)  0  sin(θ)]
+        [0       1   0    ]
+        [-sin(θ) 0  cos(θ)]
+
+Rz(θ) = [cos(θ) -sin(θ)  0]
+        [sin(θ)  cos(θ)  0]
+        [0       0       1]
+```
+
+#### Perspective Projection
+```javascript
+perspectiveScale = perspective / (perspective + z);
+projectedX = worldX * perspectiveScale;
+projectedY = worldY * perspectiveScale;
+```
+
+#### Golden Ratio Distribution
+Uses φ = 0.618034 (golden ratio) for deterministic but well-distributed node behavior, ensuring consistent visual patterns while avoiding artificial regularity.
+
+The Wire visualization creates a sophisticated 3D environment where geometric precision meets organic audio-reactive behavior, resulting in a hypnotic display of rotating cubes that pulse, grow, and dance in true stereoscopic 3D space.
+
+Named after the wire.mp3 audio track that drives its industrial, electronic aesthetic.

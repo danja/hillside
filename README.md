@@ -1,21 +1,21 @@
 # Hillside Media Visualizer
 
-An interactive media player and quadruple-visualization system featuring cellular automata, flocking boids, abelian sandpile, and dual cellular automata ecosystems with audio-reactive effects.
+An interactive media player and quintuple-visualization system featuring cellular automata, flocking boids, abelian sandpile, dual cellular automata ecosystems, and 3D rotating cubes with audio-reactive effects.
 
 **[Demo](https://danja.github.io/hillside/)**
 
-The [algorithms](docs/algorithms.md) - detailed documentation for all four visualization systems.
+The [algorithms](docs/algorithms.md) - detailed documentation for all five visualization systems.
 
 
 ## Features
 
 ### Core System
 - 🎵 Advanced audio player with Web Audio API integration and frequency analysis
-- 🔄 Quadruple-visualization system with seamless switching
+- 🔄 Quintuple-visualization system with seamless switching
 - 🎮 Interactive navigation menu for visualization selection
 - 📱 Responsive design that adapts to screen size
 - ⚡ Built with Vite for fast development and builds
-- 🧪 Comprehensive test suite with 90+ tests covering all components
+- 🧪 Comprehensive test suite with 108+ tests covering all components
 
 ### Hillside Visualization (Cellular Automata)
 - 🌈 Particle-based cellular automaton with D3.js force simulation
@@ -47,6 +47,14 @@ The [algorithms](docs/algorithms.md) - detailed documentation for all four visua
 - 🎵 Audio-reactive ecosystem modulation with tecNO.mp3
 - 🧬 Real-time dual CA system with population maintenance
 
+### Wire Visualization (3D Rotating Cubes)
+- 🎲 True 3D cellular automata with rotating geometric cubes
+- 👀 Perspective-correct anaglyph 3D effects (red/cyan stereoscopic)
+- 📏 Dynamic size divergence system prevents visual convergence
+- 🔄 Custom 3D physics engine with attraction/repulsion forces
+- 🎵 Audio-reactive rotation chaos and size pulsing with wire.mp3
+- 🌫️ Depth-based shadows and grayscale industrial aesthetic
+
 ## Architecture Overview
 
 The project follows a modular ES6 architecture with clear separation of concerns:
@@ -73,6 +81,9 @@ src/
 │   │   └── cell.js              # Individual grid cell
 │   ├── clouds/                  # Clouds visualization
 │   │   └── simulation.js        # Dual CA ecosystem with Life + Lenia
+│   ├── wire/                    # Wire visualization
+│   │   ├── simulation.js        # 3D cube cellular automata with anaglyph
+│   │   └── cube-node.js         # Individual 3D rotating cube
 │   ├── navigation/              # UI navigation system
 │   │   └── menu.js              # Menu handling and visualization switching
 │   ├── media/                   # Audio system
@@ -82,12 +93,13 @@ src/
 │       └── math.js              # Mathematical utilities
 └── lib/                         # Local D3.js dependencies
 
-tests/                           # Comprehensive test suite (90+ tests)
+tests/                           # Comprehensive test suite (108+ tests)
 ├── base/                        # Base class tests
 ├── boids/                       # Boids system tests
 ├── cellular-automata/           # Cellular automata tests
 ├── sandpile/                    # Sandpile system tests
 ├── clouds/                      # Clouds dual CA system tests
+├── wire/                        # Wire 3D visualization tests
 ├── navigation/                  # Navigation menu tests
 ├── media/                       # Audio player tests
 └── utils/                       # Utility function tests
@@ -99,7 +111,8 @@ public/                          # Static assets and audio files
 ├── hillside_2025-08-26.mp3    # Hillside visualization audio
 ├── roofs.mp3                   # Roofs visualization audio
 ├── fish-march.mp3              # Road visualization audio
-└── tecNO.mp3                   # Clouds visualization audio
+├── tecNO.mp3                   # Clouds visualization audio
+└── wire.mp3                    # Wire visualization audio
 ```
 
 ## Getting Started
@@ -148,7 +161,7 @@ npm run test:ui
 ## Usage
 
 ### Navigation
-- **Menu Buttons**: Click "Hillside", "Roofs", "Road", or "Clouds" to switch visualizations
+- **Menu Buttons**: Click "Hillside", "Roofs", "Road", "Clouds", or "Wire" to switch visualizations
 - **Auto-Start**: Audio automatically starts when switching visualizations
 
 ### Audio Controls
@@ -172,6 +185,7 @@ npm run test:ui
 - **Roofs**: Custom flocking algorithm implementation
 - **Road**: Abelian sandpile cellular automaton with strategic pile concentration
 - **Clouds**: Dual cellular automata (Conway's Life + Lenia) with ecosystem dynamics
+- **Wire**: 3D rotating cubes with perspective-correct anaglyph stereoscopic effects
 - **Graphics**: HTML5 Canvas 2D rendering
 - **Animation**: RequestAnimationFrame for smooth 60fps performance
 
@@ -198,7 +212,7 @@ npm run test:ui
 - **Audio Latency**: Sub-25ms response times for real-time audio-visual synchronization
 
 ### Testing Strategy
-- **Comprehensive Coverage**: 90+ tests covering all components and edge cases
+- **Comprehensive Coverage**: 108+ tests covering all components and edge cases
 - **Test Structure**: Mirrors source structure for easy maintenance
 - **Mocking**: Web APIs mocked for reliable testing in jsdom environment
 - **Integration Tests**: Full workflow testing including navigation and audio integration
