@@ -1,17 +1,17 @@
 # Hillside Media Visualizer
 
-An interactive media player and quintuple-visualization system featuring cellular automata, flocking boids, abelian sandpile, dual cellular automata ecosystems, and 3D rotating cubes with audio-reactive effects.
+An interactive media player and sextuple-visualization system featuring cellular automata, flocking boids, abelian sandpile, dual cellular automata ecosystems, 3D rotating cubes, and Chladni pattern simulation with audio-reactive effects.
 
 **[Demo](https://danja.github.io/hillside/)**
 
-The [algorithms](docs/algorithms.md) - detailed documentation for all five visualization systems.
+The [algorithms](docs/algorithms.md) - detailed documentation for all six visualization systems.
 
 
 ## Features
 
 ### Core System
 - 🎵 Advanced audio player with Web Audio API integration and frequency analysis
-- 🔄 Quintuple-visualization system with seamless switching
+- 🔄 Sextuple-visualization system with seamless switching
 - 🎮 Interactive navigation menu for visualization selection
 - 📱 Responsive design that adapts to screen size
 - ⚡ Built with Vite for fast development and builds
@@ -55,6 +55,14 @@ The [algorithms](docs/algorithms.md) - detailed documentation for all five visua
 - 🎵 Audio-reactive rotation chaos and size pulsing with wire.mp3
 - 🌫️ Depth-based shadows and grayscale industrial aesthetic
 
+### Mountain Visualization (Chladni Pattern Simulation)
+- 🏔️ Physical modeling of a vibrating metal plate with sand grains
+- 🌊 Finite difference method for realistic wave propagation physics
+- 🎵 Multi-point audio excitation creates complex interference patterns
+- 🔬 Authentic Chladni pattern formation with nodal line seeking behavior
+- ⚡ Anti-settling mechanisms maintain dynamic patterns over time
+- 🎨 Natural sand grain colors with displacement visualization
+
 ## Architecture Overview
 
 The project follows a modular ES6 architecture with clear separation of concerns:
@@ -84,6 +92,9 @@ src/
 │   ├── wire/                    # Wire visualization
 │   │   ├── simulation.js        # 3D cube cellular automata with anaglyph
 │   │   └── cube-node.js         # Individual 3D rotating cube
+│   ├── mountain/                # Mountain visualization
+│   │   ├── simulation.js        # Chladni pattern simulation with plate physics
+│   │   └── sand-grain.js        # Individual sand grain with nodal seeking
 │   ├── navigation/              # UI navigation system
 │   │   └── menu.js              # Menu handling and visualization switching
 │   ├── media/                   # Audio system
@@ -100,6 +111,7 @@ tests/                           # Comprehensive test suite (108+ tests)
 ├── sandpile/                    # Sandpile system tests
 ├── clouds/                      # Clouds dual CA system tests
 ├── wire/                        # Wire 3D visualization tests
+├── mountain/                    # Mountain Chladni pattern tests
 ├── navigation/                  # Navigation menu tests
 ├── media/                       # Audio player tests
 └── utils/                       # Utility function tests
@@ -112,7 +124,8 @@ public/                          # Static assets and audio files
 ├── roofs.mp3                   # Roofs visualization audio
 ├── fish-march.mp3              # Road visualization audio
 ├── tecNO.mp3                   # Clouds visualization audio
-└── wire.mp3                    # Wire visualization audio
+├── wire.mp3                    # Wire visualization audio
+└── mountain.mp3                # Mountain visualization audio
 ```
 
 ## Getting Started
@@ -161,7 +174,7 @@ npm run test:ui
 ## Usage
 
 ### Navigation
-- **Menu Buttons**: Click "Hillside", "Roofs", "Road", "Clouds", or "Wire" to switch visualizations
+- **Menu Buttons**: Click "Hillside", "Roofs", "Road", "Clouds", "Wire", or "Mountain" to switch visualizations
 - **Auto-Start**: Audio automatically starts when switching visualizations
 
 ### Audio Controls
@@ -186,6 +199,7 @@ npm run test:ui
 - **Road**: Abelian sandpile cellular automaton with strategic pile concentration
 - **Clouds**: Dual cellular automata (Conway's Life + Lenia) with ecosystem dynamics
 - **Wire**: 3D rotating cubes with perspective-correct anaglyph stereoscopic effects
+- **Mountain**: Chladni pattern simulation with metal plate physics and sand grain dynamics
 - **Graphics**: HTML5 Canvas 2D rendering
 - **Animation**: RequestAnimationFrame for smooth 60fps performance
 
