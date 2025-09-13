@@ -111,7 +111,7 @@ describe('VisualizationManager', () => {
     });
 
     it('should have correct audio files mapping', () => {
-        expect(manager.audioFiles.hillside).toBe('hillside_2025-08-26.mp3');
+        expect(manager.audioFiles.hillside).toBe('hillside.mp3');
         expect(manager.audioFiles.roofs).toBe('roofs.mp3');
     });
 

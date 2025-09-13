@@ -30,7 +30,7 @@ export class VisualizationManager {
         
         // Audio files for each visualization
         this.audioFiles = {
-            hillside: 'hillside_2025-08-26.mp3',
+            hillside: 'hillside.mp3',
             roofs: 'roofs.mp3',
             road: 'fish-march.mp3',
             clouds: 'tecNO.mp3',
