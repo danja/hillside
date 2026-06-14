@@ -8,7 +8,8 @@ HEIGHT="${HEIGHT:-1080}"
 FPS="${FPS:-30}"
 OUTPUT_DIR="${OUTPUT_DIR:-renders}"
 CRF="${CRF:-18}"
-PRESET="${PRESET:-medium}"
+PRESET="${PRESET:-ultrafast}"
+CAPTURE="${CAPTURE:-frames}"
 ONLY="${ONLY:-}"
 EXTRA_ARGS=()
 
@@ -22,14 +23,16 @@ if ! command -v ffprobe >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! command -v Xvfb >/dev/null 2>&1; then
-  echo "Missing Xvfb. Install it with: sudo apt install -y xvfb" >&2
-  exit 1
-fi
+if [ "$CAPTURE" = "x11" ]; then
+  if ! command -v Xvfb >/dev/null 2>&1; then
+    echo "Missing Xvfb. Install it with: sudo apt install -y xvfb" >&2
+    exit 1
+  fi
 
-if ! command -v openbox >/dev/null 2>&1; then
-  echo "Missing openbox. Install it with: sudo apt install -y openbox" >&2
-  exit 1
+  if ! command -v openbox >/dev/null 2>&1; then
+    echo "Missing openbox. Install it with: sudo apt install -y openbox" >&2
+    exit 1
+  fi
 fi
 
 if [ ! -d node_modules ]; then
@@ -47,5 +50,6 @@ npm run render:videos -- \
   --output "$OUTPUT_DIR" \
   --crf "$CRF" \
   --preset "$PRESET" \
+  --capture "$CAPTURE" \
   "${EXTRA_ARGS[@]}" \
   "$@"

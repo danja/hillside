@@ -38,8 +38,8 @@ const port = parseInteger(args.port, 4175);
 let activePort = port;
 const duration = parseNumber(args.duration, 0);
 const crf = String(parseInteger(args.crf, 18));
-const preset = args.preset || 'medium';
-const captureMode = args.capture || 'x11';
+const preset = args.preset || 'ultrafast';
+const captureMode = args.capture || 'frames';
 const preroll = parseNumber(args.preroll, captureMode === 'x11' ? 3.5 : 0);
 const visualizations = parseVisualizations(args.visualizations || args.only);
 
@@ -191,24 +191,31 @@ async function listenOnAvailablePort(server, preferredPort) {
 }
 
 async function createBrowser() {
-    const browser = await puppeteer.launch({
-        headless: captureMode === 'x11' || args.headed === 'true' ? false : 'new',
-        args: [
-            `--window-size=${width},${height}`,
+    const browserArgs = [
+        `--window-size=${width},${height}`,
+        '--hide-scrollbars',
+        '--autoplay-policy=no-user-gesture-required',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding',
+        '--force-device-scale-factor=1',
+        '--no-sandbox'
+    ];
+
+    if (captureMode === 'x11') {
+        browserArgs.push(
             '--window-position=0,0',
             '--kiosk',
             '--start-fullscreen',
-            '--hide-scrollbars',
             '--ozone-platform=x11',
             '--disable-gpu',
-            '--disable-dev-shm-usage',
-            '--autoplay-policy=no-user-gesture-required',
-            '--disable-background-timer-throttling',
-            '--disable-backgrounding-occluded-windows',
-            '--disable-renderer-backgrounding',
-            '--force-device-scale-factor=1',
-            '--no-sandbox'
-        ]
+            '--disable-dev-shm-usage'
+        );
+    }
+
+    const browser = await puppeteer.launch({
+        headless: captureMode === 'x11' || args.headed === 'true' ? false : 'new',
+        args: browserArgs
     });
 
     return browser;
@@ -231,7 +238,15 @@ async function renderVisualization(browser, type) {
 
         const playback = await page.evaluate((renderOptions) => {
             return window.hillsideRender.preparePlayback(renderOptions);
-        }, { type, width, height, fps, duration, manualFrames: captureMode !== 'x11' });
+        }, {
+            type,
+            width,
+            height,
+            fps,
+            duration,
+            manualFrames: true,
+            deterministicTime: captureMode === 'frames'
+        });
 
         const audioPath = join(distDir, playback.audio);
         const captureDuration = duration > 0 ? duration : getAudioDuration(audioPath);
@@ -239,14 +254,30 @@ async function renderVisualization(browser, type) {
             throw new Error(`Could not determine duration for ${type}`);
         }
 
-        if (captureMode === 'x11') {
+        if (captureMode === 'frames') {
+            const capture = startFramePipeCapture(audioPath, mp4Path, captureDuration);
+            await writeFramePipeCapture(page, capture, captureDuration, type);
+            await waitForProcess(capture, `ffmpeg frame encode for ${type}`);
+            await page.evaluate(() => window.hillsideRender.stopPlayback());
+        } else if (captureMode === 'x11') {
+            await page.evaluate(() => window.hillsideRender.renderFrame());
             if (preroll > 0) {
                 console.log(`Prerolling ${preroll}s before capture`);
-                await delay(preroll * 1000);
+                await page.evaluate((renderFps, seconds) => new Promise((resolve) => {
+                    let remaining = Math.max(1, Math.floor(renderFps * seconds));
+                    const timer = window.setInterval(() => {
+                        window.hillsideRender.renderFrame();
+                        remaining--;
+                        if (remaining <= 0) {
+                            window.clearInterval(timer);
+                            resolve();
+                        }
+                    }, 1000 / Math.max(renderFps, 1));
+                }), fps, preroll);
             }
             const capture = startX11Capture(audioPath, mp4Path, captureDuration);
             await delay(250);
-            await page.evaluate(() => window.hillsideRender.beginPlayback());
+            await page.evaluate((renderFps) => window.hillsideRender.beginManualPlayback(renderFps), fps);
             await waitForProcess(capture, `ffmpeg x11 capture for ${type}`);
             await page.evaluate(() => window.hillsideRender.stopPlayback());
         } else {
@@ -325,6 +356,7 @@ function startX11Capture(audioPath, outputPath, captureDuration) {
         '-r', String(fps),
         '-c:v', 'libx264',
         '-preset', preset,
+        '-tune', 'zerolatency',
         '-crf', crf,
         '-c:a', 'aac',
         '-b:a', '192k',
@@ -334,6 +366,76 @@ function startX11Capture(audioPath, outputPath, captureDuration) {
     ], {
         stdio: 'inherit'
     });
+}
+
+function startFramePipeCapture(audioPath, outputPath, captureDuration) {
+    return spawn('ffmpeg', [
+        '-y',
+        '-thread_queue_size', '1024',
+        '-f', 'image2pipe',
+        '-framerate', String(fps),
+        '-vcodec', 'mjpeg',
+        '-i', 'pipe:0',
+        '-i', audioPath,
+        '-t', String(captureDuration),
+        '-vf', 'scale=in_range=pc:out_range=tv,format=yuv420p',
+        '-r', String(fps),
+        '-c:v', 'libx264',
+        '-preset', preset,
+        '-crf', crf,
+        '-c:a', 'aac',
+        '-b:a', '192k',
+        '-shortest',
+        '-movflags', '+faststart',
+        outputPath
+    ], {
+        stdio: ['pipe', 'inherit', 'inherit']
+    });
+}
+
+async function writeFramePipeCapture(page, ffmpeg, captureDuration, type) {
+    const totalFrames = Math.max(1, Math.ceil(captureDuration * fps));
+    const progressInterval = Math.max(1, Math.floor(fps * 5));
+    const audioStats = {
+        bass: { min: Infinity, max: -Infinity },
+        mid: { min: Infinity, max: -Infinity },
+        treble: { min: Infinity, max: -Infinity },
+        beat: { min: Infinity, max: -Infinity },
+        audioTime: 0
+    };
+
+    for (let frame = 0; frame < totalFrames; frame++) {
+        const frameTime = Math.min(frame / fps, captureDuration);
+        const result = await page.evaluate(({ time, renderFps }) => {
+            const stats = window.hillsideRender.renderFrameAt(time, renderFps);
+            const canvas = window.hillsideRender.canvas;
+            const jpeg = canvas.toDataURL('image/jpeg', 0.92).split(',')[1];
+
+            return { stats, jpeg };
+        }, { time: frameTime, renderFps: fps });
+
+        updateAudioStats(audioStats, result.stats);
+
+        if (!ffmpeg.stdin.write(Buffer.from(result.jpeg, 'base64'))) {
+            await new Promise((resolveDrain) => ffmpeg.stdin.once('drain', resolveDrain));
+        }
+
+        if (frame > 0 && frame % progressInterval === 0) {
+            const seconds = frame / fps;
+            const percent = Math.min(100, (frame / totalFrames) * 100).toFixed(1);
+            console.log(`${type}: rendered ${seconds.toFixed(1)}s / ${captureDuration.toFixed(1)}s (${percent}%)`);
+        }
+    }
+
+    ffmpeg.stdin.end();
+    console.log(
+        `Frame audio ranges: ` +
+        `bass=${formatRange(audioStats.bass)} ` +
+        `mid=${formatRange(audioStats.mid)} ` +
+        `treble=${formatRange(audioStats.treble)} ` +
+        `beat=${formatRange(audioStats.beat)} ` +
+        `audioTime=${audioStats.audioTime.toFixed(2)}s`
+    );
 }
 
 function getDisplayInput() {
@@ -451,7 +553,7 @@ function updateAudioStats(audioStats, frameStats) {
         audioStats[key].min = Math.min(audioStats[key].min, frameStats[key]);
         audioStats[key].max = Math.max(audioStats[key].max, frameStats[key]);
     }
-    audioStats.audioTime = frameStats.audioTime;
+    audioStats.audioTime = frameStats.analysisTime ?? frameStats.audioTime;
 }
 
 function formatRange(range) {

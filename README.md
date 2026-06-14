@@ -165,14 +165,18 @@ npm run preview
 
 ```bash
 # Render every visualization/tune to MP4 files in renders/
-npm run render:videos -- --width 1920 --height 1080 --fps 30
+./render.sh
 
 # Render one visualization for a short test
-npm run render:videos -- --only hillside --duration 10 --width 1280 --height 720 --fps 30
+ONLY=hillside ./render.sh --duration 10
+
+# Override the YouTube-oriented defaults
+WIDTH=1280 HEIGHT=720 FPS=30 ./render.sh
 ```
 
-The renderer uses a separate `src/render.html` entry point with no navigation menu. It plays the real MP3 in Chrome so the Web Audio analysis still drives the visualizations, captures the real-time Xvfb/openbox display with `ffmpeg`, and writes YouTube-ready H.264/AAC MP4 files.
-When `--duration` is omitted, each MP4 duration is derived from its audio file with `ffprobe`.
+The renderer uses a separate `src/render.html` entry point with no navigation menu, so the GitHub Pages/browser app is left alone. By default it decodes the MP3, samples audio-reactive bass/mid/treble levels at each exact video frame time, pipes canvas frames into `ffmpeg`, and muxes the original audio into YouTube-ready H.264/AAC MP4 files. This is intentionally frame-by-frame instead of real-time screen capture, so slow renders do not create duplicate frozen frames.
+
+When `--duration` is omitted, each MP4 duration is derived from its audio file with `ffprobe`. The old Xvfb capture path is still available for debugging with `CAPTURE=x11 ./render.sh`, which requires `xvfb` and `openbox`.
 
 ### Testing
 

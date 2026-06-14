@@ -8,7 +8,7 @@
     "build": "vite build && mkdir -p dist/lib && cp src/lib/*.js dist/lib/",
     "build:render": "vite build --config vite.render.config.js && mkdir -p dist-render/lib && cp src/lib/*.js dist-render/lib/",
     "render:videos": "npm run build:render && node scripts/render-videos.js",
-    "render:videos:xvfb": "npm run build:render && node scripts/render-videos.js",
+    "render:videos:xvfb": "npm run build:render && node scripts/render-videos.js --capture x11",
     "preview": "vite preview",
     "test": "vitest run",
     "test:ui": "vitest --ui"

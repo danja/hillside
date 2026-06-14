@@ -34,6 +34,9 @@ class RenderApp {
         this.isRendering = false;
         this.animationTimers = null;
         this.activeVideoTrack = null;
+        this.manualLoopId = null;
+        this.originalDateNow = null;
+        this.renderTimeMs = 0;
     }
 
     async render(options = {}) {
@@ -52,6 +55,10 @@ class RenderApp {
 
         try {
             this.prepareCanvas(renderOptions.width, renderOptions.height);
+            if (renderOptions.deterministicTime) {
+                this.installDeterministicClock();
+                this.setRenderTime(0);
+            }
             if (!renderOptions.manualFrames) {
                 this.installTimedAnimationLoop(renderOptions.fps);
             }
@@ -163,6 +170,27 @@ class RenderApp {
         await this.audioPlayer.play();
     }
 
+    async beginManualPlayback(fps) {
+        await this.beginPlayback();
+        this.startManualFrameLoop(fps);
+    }
+
+    startManualFrameLoop(fps) {
+        this.stopManualFrameLoop();
+
+        const frameDelay = 1000 / Math.max(fps, 1);
+        this.manualLoopId = window.setInterval(() => {
+            this.renderFrame();
+        }, frameDelay);
+    }
+
+    stopManualFrameLoop() {
+        if (!this.manualLoopId) return;
+
+        window.clearInterval(this.manualLoopId);
+        this.manualLoopId = null;
+    }
+
     renderFrame() {
         if (!this.simulation) {
             throw new Error('Playback has not been prepared.');
@@ -180,11 +208,23 @@ class RenderApp {
         return {
             counter: this.simulation.counter,
             audioTime: this.audioPlayer?.audio?.currentTime || 0,
+            analysisTime: this.audioPlayer?.getCurrentTime?.() || 0,
             bass: this.simulation.bassInfluence,
             mid: this.simulation.midInfluence,
             treble: this.simulation.trebleInfluence,
             beat: this.simulation.beatIntensity
         };
+    }
+
+    renderFrameAt(seconds, fps = DEFAULT_RENDER_OPTIONS.fps) {
+        this.setRenderTime(seconds);
+        this.audioPlayer?.setAnalysisTime?.(seconds);
+
+        if (this.simulation && this.simulation.lastFrameTime === this.renderTimeMs) {
+            this.simulation.lastFrameTime = this.renderTimeMs - (1000 / Math.max(fps, 1));
+        }
+
+        return this.renderFrame();
     }
 
     stopPlayback() {
@@ -200,6 +240,24 @@ class RenderApp {
         this.canvas.style.height = `${height}px`;
         document.body.style.width = `${width}px`;
         document.body.style.height = `${height}px`;
+    }
+
+    installDeterministicClock() {
+        if (this.originalDateNow) return;
+
+        this.originalDateNow = Date.now.bind(Date);
+        Date.now = () => this.renderTimeMs;
+    }
+
+    setRenderTime(seconds) {
+        this.renderTimeMs = Math.max(0, seconds * 1000);
+    }
+
+    restoreClock() {
+        if (!this.originalDateNow) return;
+
+        Date.now = this.originalDateNow;
+        this.originalDateNow = null;
     }
 
     createRecorder(options) {
@@ -285,6 +343,7 @@ class RenderApp {
     }
 
     cleanup() {
+        this.stopManualFrameLoop();
         this.restoreAnimationLoop();
         this.activeVideoTrack = null;
 
@@ -297,6 +356,7 @@ class RenderApp {
             this.audioPlayer.stop();
             this.audioPlayer = null;
         }
+        this.restoreClock();
     }
 
     setStatus(message) {
