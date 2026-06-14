@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hillside Video Renderer</title>
+    <style>
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            background: #000;
+            color: #d7dde8;
+            font-family: system-ui, sans-serif;
+        }
+
+        #c {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+        }
+
+        #render-status {
+            display: none;
+        }
+    </style>
+</head>
+<body id="body">
+    <canvas id="c"></canvas>
+    <div id="render-status">Idle</div>
+
+    <script src="./lib/d3.min.js"></script>
+    <script src="./lib/d3-color.min.js"></script>
+    <script src="./lib/d3-interpolate.min.js"></script>
+    <script src="./lib/d3-collection.min.js"></script>
+    <script src="./lib/d3-dispatch.min.js"></script>
+    <script src="./lib/d3-quadtree.min.js"></script>
+    <script src="./lib/d3-timer.min.js"></script>
+    <script src="./lib/d3-scale.min.js"></script>
+    <script src="./lib/d3-scale-chromatic.min.js"></script>
+    <script src="./lib/d3-force.min.js"></script>
+    <script type="module" src="./js/render/render-app.js"></script>
+</body>
+</html>

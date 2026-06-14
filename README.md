@@ -161,6 +161,19 @@ npm run build
 npm run preview
 ```
 
+### Rendering MP4 Videos
+
+```bash
+# Render every visualization/tune to MP4 files in renders/
+npm run render:videos -- --width 1920 --height 1080 --fps 30
+
+# Render one visualization for a short test
+npm run render:videos -- --only hillside --duration 10 --width 1280 --height 720 --fps 30
+```
+
+The renderer uses a separate `src/render.html` entry point with no navigation menu. It plays the real MP3 in Chrome so the Web Audio analysis still drives the visualizations, captures browser frames, and writes YouTube-ready H.264/AAC MP4 files.
+When `--duration` is omitted, each MP4 duration is derived from its audio file with `ffprobe`.
+
 ### Testing
 
 ```bash
