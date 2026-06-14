@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Redirecting...</title>
+    <script>
+      // Get the current path and redirect to the Vite app with the path
+      const path = window.location.pathname;
+      window.location.href = '/hillside' + (path.startsWith('/hillside') ? path.substring(8) : path);
+    </script>
+  </head>
+  <body>
+    <h1>Redirecting...</h1>
+    <p>If you are not redirected, <a href="/hillside">click here</a>.</p>
+  </body>
+</html>
