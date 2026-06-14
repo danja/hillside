@@ -52,7 +52,9 @@ class RenderApp {
 
         try {
             this.prepareCanvas(renderOptions.width, renderOptions.height);
-            this.installTimedAnimationLoop(renderOptions.fps);
+            if (!renderOptions.manualFrames) {
+                this.installTimedAnimationLoop(renderOptions.fps);
+            }
 
             this.audioPlayer = new RenderAudioPlayer();
             await this.audioPlayer.loadAudio(config.audio);
@@ -126,7 +128,9 @@ class RenderApp {
             );
 
             this.setStatus(`Playing ${config.label}`);
-            this.simulation.start();
+            if (!renderOptions.manualFrames) {
+                this.simulation.start();
+            }
 
             return {
                 audio: config.audio,
@@ -145,6 +149,31 @@ class RenderApp {
         }
 
         await this.audioPlayer.play();
+    }
+
+    renderFrame() {
+        if (!this.simulation) {
+            throw new Error('Playback has not been prepared.');
+        }
+
+        this.simulation.counter++;
+
+        if (this.simulation.simulation && typeof this.simulation.simulation.tick === 'function') {
+            this.simulation.simulation.tick();
+        }
+
+        this.simulation.setupFrame();
+        this.simulation.draw();
+        this.requestCanvasFrame();
+
+        return {
+            counter: this.simulation.counter,
+            audioTime: this.audioPlayer?.audio?.currentTime || 0,
+            bass: this.simulation.bassInfluence,
+            mid: this.simulation.midInfluence,
+            treble: this.simulation.trebleInfluence,
+            beat: this.simulation.beatIntensity
+        };
     }
 
     stopPlayback() {

@@ -35,6 +35,7 @@ const width = parseInteger(args.width, 1280);
 const height = parseInteger(args.height, 720);
 const fps = parseInteger(args.fps, 30);
 const port = parseInteger(args.port, 4175);
+let activePort = port;
 const duration = parseNumber(args.duration, 0);
 const crf = String(parseInteger(args.crf, 18));
 const preset = args.preset || 'medium';
@@ -143,12 +144,38 @@ async function startServer(rootDir, preferredPort) {
         createReadStream(filePath).pipe(response);
     });
 
-    await new Promise((resolveListen, rejectListen) => {
-        server.once('error', rejectListen);
-        server.listen(preferredPort, '127.0.0.1', resolveListen);
-    });
+    await listenOnAvailablePort(server, preferredPort);
 
     return server;
+}
+
+async function listenOnAvailablePort(server, preferredPort) {
+    for (let candidatePort = preferredPort; candidatePort < preferredPort + 20; candidatePort++) {
+        try {
+            await new Promise((resolveListen, rejectListen) => {
+                const handleError = (error) => {
+                    server.off('listening', handleListening);
+                    rejectListen(error);
+                };
+                const handleListening = () => {
+                    server.off('error', handleError);
+                    resolveListen();
+                };
+
+                server.once('error', handleError);
+                server.once('listening', handleListening);
+                server.listen(candidatePort, '127.0.0.1');
+            });
+            activePort = candidatePort;
+            return;
+        } catch (error) {
+            if (error.code !== 'EADDRINUSE') {
+                throw error;
+            }
+        }
+    }
+
+    throw new Error(`Could not bind local render server on ports ${preferredPort}-${preferredPort + 19}`);
 }
 
 async function createBrowser() {
@@ -171,7 +198,7 @@ async function createBrowser() {
 
 async function renderVisualization(browser, type) {
     const mp4Path = join(outputDir, `${type}-${width}x${height}-${Date.now()}.mp4`);
-    const url = `http://127.0.0.1:${port}/render.html`;
+    const url = `http://127.0.0.1:${activePort}/render.html`;
     const page = await browser.newPage();
 
     try {
@@ -185,7 +212,7 @@ async function renderVisualization(browser, type) {
 
         const playback = await page.evaluate((renderOptions) => {
             return window.hillsideRender.preparePlayback(renderOptions);
-        }, { type, width, height, fps, duration });
+        }, { type, width, height, fps, duration, manualFrames: true });
 
         const audioPath = join(distDir, playback.audio);
         const captureDuration = duration > 0 ? duration : getAudioDuration(audioPath);
@@ -257,6 +284,7 @@ async function startScreencastCapture(page, audioPath, outputPath, captureDurati
         async writeFrames() {
             const totalFrames = Math.max(1, Math.ceil(captureDuration * fps));
             const start = Date.now();
+            let lastRenderStats = null;
 
             for (let frame = 0; frame < totalFrames; frame++) {
                 const targetTime = start + (frame * 1000 / fps);
@@ -265,12 +293,22 @@ async function startScreencastCapture(page, audioPath, outputPath, captureDurati
                     await delay(waitMs);
                 }
 
+                const previousFrameCount = frameCount;
+                lastRenderStats = await page.evaluate(() => window.hillsideRender.renderFrame());
+                await waitForScreencastFrame(() => frameCount > previousFrameCount, 250);
+
                 if (!ffmpeg.stdin.write(latestFrame)) {
                     await new Promise((resolveDrain) => ffmpeg.stdin.once('drain', resolveDrain));
                 }
             }
 
             ffmpeg.stdin.end();
+            if (lastRenderStats) {
+                console.log(
+                    `Last frame audio levels: bass=${lastRenderStats.bass.toFixed(3)} ` +
+                    `mid=${lastRenderStats.mid.toFixed(3)} treble=${lastRenderStats.treble.toFixed(3)}`
+                );
+            }
         },
 
         async stop() {
@@ -327,6 +365,14 @@ async function waitForFirstFrame(getFrame) {
         }
 
         await delay(50);
+    }
+}
+
+async function waitForScreencastFrame(hasNewFrame, timeoutMs) {
+    const deadline = Date.now() + timeoutMs;
+
+    while (!hasNewFrame() && Date.now() < deadline) {
+        await delay(5);
     }
 }
 
