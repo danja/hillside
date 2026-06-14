@@ -1,0 +1,242 @@
+import { CellularAutomataSimulation } from '../cellular-automata/simulation.js';
+import { Node } from '../cellular-automata/node.js';
+import { distance } from '../utils/math.js';
+
+export class RenderHillsideSimulation extends CellularAutomataSimulation {
+    constructor(canvas, context, width, height, audioPlayer = null) {
+        super(canvas, context, width, height, audioPlayer);
+
+        this.baseAlpha = 0.36;
+        this.maxRenderSize = 12;
+        this.maxInteractionDistance = Math.min(width, height) * 0.18;
+        this.maxConnections = width > 1024 ? 1900 : 950;
+        this.maxConnectionsPerNode = width > 1024 ? 6 : 5;
+        this.maxVelocity = 4.5;
+    }
+
+    initializeNodes() {
+        const nodeCount = this.width > 1024 ? 420 : 300;
+        const scale = d3.scaleLinear()
+            .domain([0, nodeCount])
+            .range([0, 1]);
+        const color = d3.scaleSequential(d3.interpolateRainbow);
+        const centerX = this.width / 2;
+        const centerY = this.height / 2;
+        const radiusX = this.width * 0.4;
+        const radiusY = this.height * 0.36;
+
+        for (let i = 0; i < nodeCount; i++) {
+            const angle = this.hash(i, 1) * Math.PI * 2;
+            const radius = Math.sqrt(this.hash(i, 2));
+            const wobbleX = (this.hash(i, 3) - 0.5) * this.width * 0.2;
+            const wobbleY = (this.hash(i, 4) - 0.5) * this.height * 0.18;
+            const node = new Node(
+                i,
+                centerX + Math.cos(angle) * radiusX * radius + wobbleX,
+                centerY + Math.sin(angle) * radiusY * radius + wobbleY,
+                color(scale(i))
+            );
+            node.size = 1.2 + ((i % 11) / 11) * 2.6;
+            this.nodes.push(node);
+        }
+    }
+
+    setupForces() {
+        const collisionForce = d3.forceCollide((node) => node.size * 8).strength(0.04).iterations(1);
+        const attractForce = d3.forceManyBody().strength((node) => node.size * -1.4);
+        const center = d3.forceCenter(this.width / 2, this.height / 2).strength(0.16);
+
+        this.simulation = d3.forceSimulation(this.nodes)
+            .force('collisionForce', collisionForce)
+            .force('attractForce', attractForce)
+            .force('center', center);
+    }
+
+    draw() {
+        this.stabilizeNodes();
+
+        this.context.strokeStyle = '#ffffff80';
+        this.context.lineWidth = 0.51;
+
+        const timeDensity = this.getTimeDensity();
+        let connectionCount = 0;
+
+        for (let i = 0; i < this.nodes.length; i++) {
+            if (connectionCount >= this.maxConnections) break;
+
+            const node = this.nodes[i];
+            let nodeConnections = 0;
+            node.size = this.clampSize(node.size * 0.9975);
+
+            for (let j = i + 1; j < this.nodes.length; j++) {
+                if (nodeConnections >= this.maxConnectionsPerNode) break;
+
+                const other = this.nodes[j];
+                const d = Math.max(distance(node, other), 0.5);
+                const interactionDistance = Math.min(
+                    14 * (node.size + other.size) * timeDensity,
+                    this.maxInteractionDistance
+                );
+
+                if (d >= interactionDistance) {
+                    continue;
+                }
+
+                connectionCount++;
+                nodeConnections++;
+
+                const smaller = node.size < other.size ? node : other;
+                const velocityWidth = Math.max(0.18, Math.min(Math.abs(node.vx), 2));
+                this.context.lineWidth = velocityWidth * (1 + this.bassInfluence * 3.2);
+
+                const growthRate = 0.035 * (1 + this.midInfluence * 1.8);
+                node.size = this.clampSize(node.size + (growthRate * other.size) / d);
+                other.size = this.clampSize(other.size + (growthRate * node.size) / d);
+
+                const interactionStrength = 0.16 * (1 + this.trebleInfluence * 1.45);
+                node.vx += (interactionStrength * other.vx) / d;
+                node.vy += (interactionStrength * other.vy) / d;
+                other.vx += (interactionStrength * node.vx) / d;
+                other.vy += (interactionStrength * node.vy) / d;
+                this.clampVelocity(node);
+                this.clampVelocity(other);
+
+                const baseOpacity = 1.65 / Math.max(Math.log(d + 2), 1);
+                const audioReactiveOpacity = Math.min(0.95, baseOpacity * (0.22 + this.bassInfluence));
+                this.context.strokeStyle = smaller.color
+                    .replace(')', `,${audioReactiveOpacity})`)
+                    .replace('rgb', 'rgba');
+                this.context.beginPath();
+                this.context.moveTo(node.x, node.y);
+                this.context.lineTo(other.x, other.y);
+                this.context.stroke();
+
+                if (connectionCount >= this.maxConnections) break;
+            }
+        }
+
+        this.nodes.forEach((node) => {
+            const velocityEnergy = Math.max(Math.min(Math.abs(node.vx * node.vy), 4), 0.55);
+            const baseRadius = 0.22 * Math.min(node.size, 3) * velocityEnergy;
+            const audioReactivity = this.bassInfluence + this.midInfluence + this.trebleInfluence;
+            const audioInfluencedRadius = Math.min(4.2, Math.max(0.35, baseRadius * (1 + audioReactivity * 0.75)));
+
+            this.context.beginPath();
+            const shadowOpacity = 0.22 + this.bassInfluence * 0.35;
+            this.context.fillStyle = `rgba(0, 0, 0, ${shadowOpacity})`;
+            this.context.arc(node.x + 1, node.y + 1, 0.45 * audioInfluencedRadius, 0, Math.PI * 2, true);
+            this.context.closePath();
+            this.context.fill();
+
+            this.context.beginPath();
+
+            if (this.trebleInfluence > 0.48) {
+                const glowRadius = audioInfluencedRadius * (1 + this.trebleInfluence * 0.55);
+                const gradient = this.context.createRadialGradient(node.x, node.y, 0, node.x, node.y, glowRadius);
+                gradient.addColorStop(0, node.color);
+                gradient.addColorStop(0.7, node.color.replace(')', ', 0.18)').replace('rgb', 'rgba'));
+                gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                this.context.fillStyle = gradient;
+                this.context.arc(node.x, node.y, glowRadius, 0, Math.PI * 2, true);
+                this.context.closePath();
+                this.context.fill();
+                this.context.beginPath();
+            }
+
+            this.context.fillStyle = node.color;
+            this.context.arc(node.x, node.y, audioInfluencedRadius, 0, Math.PI * 2, true);
+            this.context.closePath();
+            this.context.fill();
+        });
+
+        const totalAudioInfluence = this.bassInfluence + this.midInfluence + this.trebleInfluence;
+        this.simulation.alpha(this.baseAlpha * (0.75 + totalAudioInfluence * 0.35));
+        this.stabilizeNodes();
+    }
+
+    stabilizeNodes() {
+        if (this.nodes.length === 0) return;
+
+        const centerX = this.width / 2;
+        const centerY = this.height / 2;
+        const padding = Math.min(this.width, this.height) * 0.08;
+        let minX = Infinity;
+        let maxX = -Infinity;
+        let minY = Infinity;
+        let maxY = -Infinity;
+        let sumX = 0;
+        let sumY = 0;
+
+        this.nodes.forEach((node) => {
+            if (!Number.isFinite(node.x) || !Number.isFinite(node.y)) {
+                const angle = node.id * 2.399963229728653;
+                node.x = centerX + Math.cos(angle) * this.width * 0.25;
+                node.y = centerY + Math.sin(angle) * this.height * 0.25;
+            }
+
+            node.size = this.clampSize(node.size);
+            this.clampVelocity(node);
+
+            minX = Math.min(minX, node.x);
+            maxX = Math.max(maxX, node.x);
+            minY = Math.min(minY, node.y);
+            maxY = Math.max(maxY, node.y);
+            sumX += node.x;
+            sumY += node.y;
+        });
+
+        const centroidX = sumX / this.nodes.length;
+        const centroidY = sumY / this.nodes.length;
+        const shiftX = centerX - centroidX;
+        const shiftY = centerY - centroidY;
+        const spanX = Math.max(maxX - minX, 1);
+        const spanY = Math.max(maxY - minY, 1);
+        const maxSpanX = this.width - padding * 2;
+        const maxSpanY = this.height - padding * 2;
+        const shrink = Math.min(1, maxSpanX / spanX, maxSpanY / spanY);
+        const minSpanX = this.width * 0.46;
+        const minSpanY = this.height * 0.42;
+        const expand = spanX < minSpanX && spanY < minSpanY
+            ? Math.min(1.045, minSpanX / spanX, minSpanY / spanY)
+            : 1;
+        const scale = shrink < 1 ? shrink : expand;
+
+        this.nodes.forEach((node) => {
+            node.x = centerX + ((node.x + shiftX) - centerX) * scale;
+            node.y = centerY + ((node.y + shiftY) - centerY) * scale;
+
+            if (
+                node.x < -padding ||
+                node.x > this.width + padding ||
+                node.y < -padding ||
+                node.y > this.height + padding
+            ) {
+                const angle = node.id * 2.399963229728653 + this.counter * 0.013;
+                node.x = centerX + Math.cos(angle) * this.width * 0.34;
+                node.y = centerY + Math.sin(angle) * this.height * 0.32;
+                node.vx *= 0.25;
+                node.vy *= 0.25;
+            }
+        });
+    }
+
+    clampSize(size) {
+        return Math.max(1, Math.min(size, this.maxRenderSize));
+    }
+
+    clampVelocity(node) {
+        node.vx = this.clampNumber(node.vx, this.maxVelocity);
+        node.vy = this.clampNumber(node.vy, this.maxVelocity);
+    }
+
+    clampNumber(value, magnitude) {
+        if (!Number.isFinite(value)) return 0;
+
+        return Math.max(-magnitude, Math.min(value, magnitude));
+    }
+
+    hash(index, salt) {
+        const value = Math.sin(index * 12.9898 + salt * 78.233) * 43758.5453123;
+        return value - Math.floor(value);
+    }
+}

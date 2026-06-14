@@ -1,4 +1,4 @@
-import { CellularAutomataSimulation } from '../cellular-automata/simulation.js';
+import { RenderHillsideSimulation } from './render-hillside-simulation.js';
 import { BoidsSimulation } from '../boids/simulation.js';
 import { SandpileSimulation } from '../sandpile/simulation.js';
 import { CloudsSimulation } from '../clouds/simulation.js';
@@ -7,7 +7,7 @@ import { MountainSimulation } from '../mountain/simulation.js';
 import { RenderAudioPlayer } from './render-audio-player.js';
 
 const VISUALIZATIONS = {
-    hillside: { label: 'Hillside', audio: 'hillside.mp3', Simulation: CellularAutomataSimulation },
+    hillside: { label: 'Hillside', audio: 'hillside.mp3', Simulation: RenderHillsideSimulation },
     roofs: { label: 'Roofs', audio: 'roofs.mp3', Simulation: BoidsSimulation },
     road: { label: 'Road', audio: 'fish-march.mp3', Simulation: SandpileSimulation },
     clouds: { label: 'Clouds', audio: 'tecNO.mp3', Simulation: CloudsSimulation },
