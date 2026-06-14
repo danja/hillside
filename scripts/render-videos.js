@@ -37,8 +37,11 @@ const fps = parseInteger(args.fps, 30);
 const port = parseInteger(args.port, 4175);
 let activePort = port;
 const duration = parseNumber(args.duration, 0);
-const crf = String(parseInteger(args.crf, 18));
-const preset = args.preset || 'ultrafast';
+const crf = String(parseInteger(args.crf, 28));
+const preset = args.preset || 'medium';
+const videoBitrate = args['video-bitrate'] || args.bitrate || '';
+const maxrate = args.maxrate || '';
+const bufsize = args.bufsize || '';
 const captureMode = args.capture || 'frames';
 const preroll = parseNumber(args.preroll, captureMode === 'x11' ? 3.5 : 0);
 const visualizations = parseVisualizations(args.visualizations || args.only);
@@ -357,7 +360,7 @@ function startX11Capture(audioPath, outputPath, captureDuration) {
         '-c:v', 'libx264',
         '-preset', preset,
         '-tune', 'zerolatency',
-        '-crf', crf,
+        ...getVideoRateArgs(),
         '-c:a', 'aac',
         '-b:a', '192k',
         '-shortest',
@@ -382,7 +385,7 @@ function startFramePipeCapture(audioPath, outputPath, captureDuration) {
         '-r', String(fps),
         '-c:v', 'libx264',
         '-preset', preset,
-        '-crf', crf,
+        ...getVideoRateArgs(),
         '-c:a', 'aac',
         '-b:a', '192k',
         '-shortest',
@@ -391,6 +394,22 @@ function startFramePipeCapture(audioPath, outputPath, captureDuration) {
     ], {
         stdio: ['pipe', 'inherit', 'inherit']
     });
+}
+
+function getVideoRateArgs() {
+    if (!videoBitrate) {
+        return ['-crf', crf];
+    }
+
+    const rateArgs = ['-b:v', videoBitrate];
+    if (maxrate) {
+        rateArgs.push('-maxrate', maxrate);
+    }
+    if (bufsize) {
+        rateArgs.push('-bufsize', bufsize);
+    }
+
+    return rateArgs;
 }
 
 async function writeFramePipeCapture(page, ffmpeg, captureDuration, type) {

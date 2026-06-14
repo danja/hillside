@@ -7,8 +7,12 @@ WIDTH="${WIDTH:-1920}"
 HEIGHT="${HEIGHT:-1080}"
 FPS="${FPS:-30}"
 OUTPUT_DIR="${OUTPUT_DIR:-renders}"
-CRF="${CRF:-18}"
-PRESET="${PRESET:-ultrafast}"
+CRF="${CRF:-28}"
+PRESET="${PRESET:-medium}"
+RATE_CONTROL="${RATE_CONTROL:-bitrate}"
+VIDEO_BITRATE="${VIDEO_BITRATE:-2500k}"
+MAXRATE="${MAXRATE:-3500k}"
+BUFSIZE="${BUFSIZE:-7000k}"
 CAPTURE="${CAPTURE:-frames}"
 ONLY="${ONLY:-}"
 EXTRA_ARGS=()
@@ -43,12 +47,17 @@ if [ -n "$ONLY" ]; then
   EXTRA_ARGS+=(--only "$ONLY")
 fi
 
+if [ "$RATE_CONTROL" = "bitrate" ]; then
+  EXTRA_ARGS+=(--video-bitrate "$VIDEO_BITRATE" --maxrate "$MAXRATE" --bufsize "$BUFSIZE")
+else
+  EXTRA_ARGS+=(--crf "$CRF")
+fi
+
 npm run render:videos -- \
   --width "$WIDTH" \
   --height "$HEIGHT" \
   --fps "$FPS" \
   --output "$OUTPUT_DIR" \
-  --crf "$CRF" \
   --preset "$PRESET" \
   --capture "$CAPTURE" \
   "${EXTRA_ARGS[@]}" \

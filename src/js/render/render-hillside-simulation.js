@@ -6,12 +6,12 @@ export class RenderHillsideSimulation extends CellularAutomataSimulation {
     constructor(canvas, context, width, height, audioPlayer = null) {
         super(canvas, context, width, height, audioPlayer);
 
-        this.baseAlpha = 0.36;
-        this.maxRenderSize = 12;
-        this.maxInteractionDistance = Math.min(width, height) * 0.18;
-        this.maxConnections = width > 1024 ? 1900 : 950;
-        this.maxConnectionsPerNode = width > 1024 ? 6 : 5;
-        this.maxVelocity = 4.5;
+        this.baseAlpha = 0.46;
+        this.maxRenderSize = 18;
+        this.maxInteractionDistance = Math.min(width, height) * 0.28;
+        this.maxConnections = width > 1024 ? 2200 : 1200;
+        this.maxConnectionsPerNode = width > 1024 ? 8 : 6;
+        this.maxVelocity = 6;
     }
 
     initializeNodes() {
@@ -22,18 +22,25 @@ export class RenderHillsideSimulation extends CellularAutomataSimulation {
         const color = d3.scaleSequential(d3.interpolateRainbow);
         const centerX = this.width / 2;
         const centerY = this.height / 2;
-        const radiusX = this.width * 0.4;
-        const radiusY = this.height * 0.36;
+        const clusterCenters = [
+            { x: centerX - this.width * 0.2, y: centerY - this.height * 0.12 },
+            { x: centerX + this.width * 0.18, y: centerY - this.height * 0.08 },
+            { x: centerX - this.width * 0.08, y: centerY + this.height * 0.16 },
+            { x: centerX + this.width * 0.1, y: centerY + this.height * 0.14 }
+        ];
+        const radiusX = this.width * 0.18;
+        const radiusY = this.height * 0.17;
 
         for (let i = 0; i < nodeCount; i++) {
+            const cluster = clusterCenters[i % clusterCenters.length];
             const angle = this.hash(i, 1) * Math.PI * 2;
             const radius = Math.sqrt(this.hash(i, 2));
             const wobbleX = (this.hash(i, 3) - 0.5) * this.width * 0.2;
             const wobbleY = (this.hash(i, 4) - 0.5) * this.height * 0.18;
             const node = new Node(
                 i,
-                centerX + Math.cos(angle) * radiusX * radius + wobbleX,
-                centerY + Math.sin(angle) * radiusY * radius + wobbleY,
+                cluster.x + Math.cos(angle) * radiusX * radius + wobbleX,
+                cluster.y + Math.sin(angle) * radiusY * radius + wobbleY,
                 color(scale(i))
             );
             node.size = 1.2 + ((i % 11) / 11) * 2.6;
@@ -42,9 +49,9 @@ export class RenderHillsideSimulation extends CellularAutomataSimulation {
     }
 
     setupForces() {
-        const collisionForce = d3.forceCollide((node) => node.size * 8).strength(0.04).iterations(1);
-        const attractForce = d3.forceManyBody().strength((node) => node.size * -1.4);
-        const center = d3.forceCenter(this.width / 2, this.height / 2).strength(0.16);
+        const collisionForce = d3.forceCollide((node) => node.size * 11).strength(0.045).iterations(1);
+        const attractForce = d3.forceManyBody().strength((node) => node.size * 0.42);
+        const center = d3.forceCenter(this.width / 2, this.height / 2).strength(0.045);
 
         this.simulation = d3.forceSimulation(this.nodes)
             .force('collisionForce', collisionForce)
@@ -53,7 +60,8 @@ export class RenderHillsideSimulation extends CellularAutomataSimulation {
     }
 
     draw() {
-        this.stabilizeNodes();
+        this.repairNodes();
+        this.applyOrganicMotion();
 
         this.context.strokeStyle = '#ffffff80';
         this.context.lineWidth = 0.51;
@@ -74,7 +82,7 @@ export class RenderHillsideSimulation extends CellularAutomataSimulation {
                 const other = this.nodes[j];
                 const d = Math.max(distance(node, other), 0.5);
                 const interactionDistance = Math.min(
-                    14 * (node.size + other.size) * timeDensity,
+                    17 * (node.size + other.size) * timeDensity,
                     this.maxInteractionDistance
                 );
 
@@ -89,11 +97,11 @@ export class RenderHillsideSimulation extends CellularAutomataSimulation {
                 const velocityWidth = Math.max(0.18, Math.min(Math.abs(node.vx), 2));
                 this.context.lineWidth = velocityWidth * (1 + this.bassInfluence * 3.2);
 
-                const growthRate = 0.035 * (1 + this.midInfluence * 1.8);
+                const growthRate = 0.05 * (1 + this.midInfluence * 2.2);
                 node.size = this.clampSize(node.size + (growthRate * other.size) / d);
                 other.size = this.clampSize(other.size + (growthRate * node.size) / d);
 
-                const interactionStrength = 0.16 * (1 + this.trebleInfluence * 1.45);
+                const interactionStrength = 0.27 * (1 + this.trebleInfluence * 1.8);
                 node.vx += (interactionStrength * other.vx) / d;
                 node.vy += (interactionStrength * other.vy) / d;
                 other.vx += (interactionStrength * node.vx) / d;
@@ -150,22 +158,15 @@ export class RenderHillsideSimulation extends CellularAutomataSimulation {
         });
 
         const totalAudioInfluence = this.bassInfluence + this.midInfluence + this.trebleInfluence;
-        this.simulation.alpha(this.baseAlpha * (0.75 + totalAudioInfluence * 0.35));
-        this.stabilizeNodes();
+        this.simulation.alpha(this.baseAlpha * (0.8 + totalAudioInfluence * 0.4));
+        this.nudgeCloudIntoView();
     }
 
-    stabilizeNodes() {
+    repairNodes() {
         if (this.nodes.length === 0) return;
 
         const centerX = this.width / 2;
         const centerY = this.height / 2;
-        const padding = Math.min(this.width, this.height) * 0.08;
-        let minX = Infinity;
-        let maxX = -Infinity;
-        let minY = Infinity;
-        let maxY = -Infinity;
-        let sumX = 0;
-        let sumY = 0;
 
         this.nodes.forEach((node) => {
             if (!Number.isFinite(node.x) || !Number.isFinite(node.y)) {
@@ -176,7 +177,37 @@ export class RenderHillsideSimulation extends CellularAutomataSimulation {
 
             node.size = this.clampSize(node.size);
             this.clampVelocity(node);
+        });
+    }
 
+    applyOrganicMotion() {
+        const elapsed = this.getElapsedTime();
+        const energy = 0.015 + this.bassInfluence * 0.05 + this.trebleInfluence * 0.035;
+
+        this.nodes.forEach((node) => {
+            const phase = elapsed * (0.55 + this.hash(node.id, 5) * 0.9) + node.id * 0.19;
+            const orbit = elapsed * (0.32 + this.hash(node.id, 6) * 0.42) + node.id * 0.07;
+            node.vx += Math.sin(phase) * energy + Math.cos(orbit) * energy * 0.7;
+            node.vy += Math.cos(phase * 0.83) * energy + Math.sin(orbit) * energy * 0.7;
+            this.clampVelocity(node);
+        });
+    }
+
+    nudgeCloudIntoView() {
+        if (this.nodes.length === 0) return;
+
+        const centerX = this.width / 2;
+        const centerY = this.height / 2;
+        const hardPadding = Math.min(this.width, this.height) * 0.28;
+        const softPadding = Math.min(this.width, this.height) * 0.1;
+        let minX = Infinity;
+        let maxX = -Infinity;
+        let minY = Infinity;
+        let maxY = -Infinity;
+        let sumX = 0;
+        let sumY = 0;
+
+        this.nodes.forEach((node) => {
             minX = Math.min(minX, node.x);
             maxX = Math.max(maxX, node.x);
             minY = Math.min(minY, node.y);
@@ -187,35 +218,29 @@ export class RenderHillsideSimulation extends CellularAutomataSimulation {
 
         const centroidX = sumX / this.nodes.length;
         const centroidY = sumY / this.nodes.length;
-        const shiftX = centerX - centroidX;
-        const shiftY = centerY - centroidY;
-        const spanX = Math.max(maxX - minX, 1);
-        const spanY = Math.max(maxY - minY, 1);
-        const maxSpanX = this.width - padding * 2;
-        const maxSpanY = this.height - padding * 2;
-        const shrink = Math.min(1, maxSpanX / spanX, maxSpanY / spanY);
-        const minSpanX = this.width * 0.46;
-        const minSpanY = this.height * 0.42;
-        const expand = spanX < minSpanX && spanY < minSpanY
-            ? Math.min(1.045, minSpanX / spanX, minSpanY / spanY)
-            : 1;
-        const scale = shrink < 1 ? shrink : expand;
+        const isMostlyInView = minX > -softPadding &&
+            maxX < this.width + softPadding &&
+            minY > -softPadding &&
+            maxY < this.height + softPadding;
+        const shiftStrength = isMostlyInView ? 0.008 : 0.035;
+        const shiftX = (centerX - centroidX) * shiftStrength;
+        const shiftY = (centerY - centroidY) * shiftStrength;
 
         this.nodes.forEach((node) => {
-            node.x = centerX + ((node.x + shiftX) - centerX) * scale;
-            node.y = centerY + ((node.y + shiftY) - centerY) * scale;
+            node.x += shiftX;
+            node.y += shiftY;
 
             if (
-                node.x < -padding ||
-                node.x > this.width + padding ||
-                node.y < -padding ||
-                node.y > this.height + padding
+                node.x < -hardPadding ||
+                node.x > this.width + hardPadding ||
+                node.y < -hardPadding ||
+                node.y > this.height + hardPadding
             ) {
-                const angle = node.id * 2.399963229728653 + this.counter * 0.013;
-                node.x = centerX + Math.cos(angle) * this.width * 0.34;
-                node.y = centerY + Math.sin(angle) * this.height * 0.32;
-                node.vx *= 0.25;
-                node.vy *= 0.25;
+                const angle = node.id * 2.399963229728653 + this.counter * 0.017;
+                node.x = centerX + Math.cos(angle) * this.width * (0.18 + this.hash(node.id, 7) * 0.2);
+                node.y = centerY + Math.sin(angle) * this.height * (0.16 + this.hash(node.id, 8) * 0.18);
+                node.vx *= 0.35;
+                node.vy *= 0.35;
             }
         });
     }
