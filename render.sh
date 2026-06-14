@@ -22,6 +22,16 @@ if ! command -v ffprobe >/dev/null 2>&1; then
   exit 1
 fi
 
+if ! command -v Xvfb >/dev/null 2>&1; then
+  echo "Missing Xvfb. Install it with: sudo apt install -y xvfb" >&2
+  exit 1
+fi
+
+if ! command -v openbox >/dev/null 2>&1; then
+  echo "Missing openbox. Install it with: sudo apt install -y openbox" >&2
+  exit 1
+fi
+
 if [ ! -d node_modules ]; then
   npm install
 fi

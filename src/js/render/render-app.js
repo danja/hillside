@@ -114,7 +114,9 @@ class RenderApp {
 
         try {
             this.prepareCanvas(renderOptions.width, renderOptions.height);
-            this.installTimedAnimationLoop(renderOptions.fps);
+            if (!renderOptions.manualFrames) {
+                this.installTimedAnimationLoop(renderOptions.fps);
+            }
 
             this.audioPlayer = new RenderAudioPlayer();
             await this.audioPlayer.loadAudio(config.audio);
@@ -126,6 +128,16 @@ class RenderApp {
                 this.canvas.height,
                 this.audioPlayer
             );
+            if (
+                renderOptions.manualFrames &&
+                this.simulation.simulation &&
+                typeof this.simulation.simulation.stop === 'function'
+            ) {
+                this.simulation.simulation.stop();
+                if (typeof this.simulation.simulation.tick === 'function') {
+                    this.simulation.simulation.tick(30);
+                }
+            }
 
             this.setStatus(`Playing ${config.label}`);
             if (!renderOptions.manualFrames) {
@@ -158,11 +170,10 @@ class RenderApp {
 
         this.simulation.counter++;
 
-        if (this.simulation.simulation && typeof this.simulation.simulation.tick === 'function') {
-            this.simulation.simulation.tick();
-        }
-
         this.simulation.setupFrame();
+        if (this.simulation.simulation && typeof this.simulation.simulation.tick === 'function') {
+            this.simulation.simulation.tick(3);
+        }
         this.simulation.draw();
         this.requestCanvasFrame();
 

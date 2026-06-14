@@ -19,6 +19,12 @@ export class RenderAudioPlayer {
         this.minBeatInterval = 300;
         this.maxBeatInterval = 1200;
         this.beatDetected = false;
+        this.levelState = {
+            bass: { average: 0, peak: 0 },
+            mid: { average: 0, peak: 0 },
+            treble: { average: 0, peak: 0 },
+            overall: { average: 0, peak: 0 }
+        };
     }
 
     async initialize() {
@@ -27,7 +33,7 @@ export class RenderAudioPlayer {
         this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
         this.analyser = this.audioContext.createAnalyser();
         this.analyser.fftSize = 512;
-        this.analyser.smoothingTimeConstant = 0.8;
+        this.analyser.smoothingTimeConstant = 0.35;
         this.frequencyData = new Uint8Array(this.analyser.frequencyBinCount);
         this.timeDomainData = new Uint8Array(this.analyser.frequencyBinCount);
         this.mediaStreamDestination = this.audioContext.createMediaStreamDestination();
@@ -54,12 +60,16 @@ export class RenderAudioPlayer {
     async play() {
         if (!this.audio) return;
 
-        if (this.audioContext.state === 'suspended') {
-            await this.audioContext.resume();
-        }
+        await this.resumeContext();
 
         await this.audio.play();
         this.isPlaying = true;
+    }
+
+    async resumeContext() {
+        if (this.audioContext.state === 'suspended') {
+            await this.audioContext.resume();
+        }
     }
 
     pause() {
@@ -113,18 +123,34 @@ export class RenderAudioPlayer {
     }
 
     getBassLevel() {
-        return this.getFrequencyRangeAverage(this.bassRange.start, this.bassRange.end) / 255;
+        return this.getBoostedLevel('bass', this.getRawBassLevel());
     }
 
     getMidLevel() {
-        return this.getFrequencyRangeAverage(this.midRange.start, this.midRange.end) / 255;
+        return this.getBoostedLevel('mid', this.getRawMidLevel());
     }
 
     getTrebleLevel() {
-        return this.getFrequencyRangeAverage(this.trebleRange.start, this.trebleRange.end) / 255;
+        return this.getBoostedLevel('treble', this.getRawTrebleLevel());
     }
 
     getOverallLevel() {
+        return this.getBoostedLevel('overall', this.getRawOverallLevel());
+    }
+
+    getRawBassLevel() {
+        return this.getFrequencyRangeAverage(this.bassRange.start, this.bassRange.end) / 255;
+    }
+
+    getRawMidLevel() {
+        return this.getFrequencyRangeAverage(this.midRange.start, this.midRange.end) / 255;
+    }
+
+    getRawTrebleLevel() {
+        return this.getFrequencyRangeAverage(this.trebleRange.start, this.trebleRange.end) / 255;
+    }
+
+    getRawOverallLevel() {
         const frequencyData = this.getFrequencyData();
         if (!frequencyData) return 0;
 
@@ -136,26 +162,42 @@ export class RenderAudioPlayer {
         return sum / (frequencyData.length * 255);
     }
 
+    getBoostedLevel(key, rawLevel) {
+        const state = this.levelState[key];
+        state.average = state.average === 0 ? rawLevel : (state.average * 0.94) + (rawLevel * 0.06);
+        state.peak = Math.max(rawLevel, state.peak * 0.985);
+
+        const transient = Math.max(0, rawLevel - state.average);
+        const compressed = Math.pow(Math.max(rawLevel, 0), 0.78) * 0.56;
+        const boosted = compressed + transient * 2.75;
+
+        return Math.max(0, Math.min(boosted, 1));
+    }
+
     detectBeat() {
-        const currentTime = Date.now();
-        const bassLevel = this.getBassLevel();
+        const currentTime = this.audio ? this.audio.currentTime * 1000 : Date.now();
+        const bassLevel = this.getRawBassLevel();
         this.beatDetected = false;
 
-        this.beatHistory.push(bassLevel);
-        if (this.beatHistory.length > 10) {
-            this.beatHistory.shift();
-        }
-
-        const averageBass = this.beatHistory.reduce((sum, level) => sum + level, 0) / this.beatHistory.length;
+        const averageBass = this.beatHistory.length > 0
+            ? this.beatHistory.reduce((sum, level) => sum + level, 0) / this.beatHistory.length
+            : bassLevel;
         const timeSinceLastBeat = currentTime - this.lastBeatTime;
+        const hasTimingGap = this.lastBeatTime === 0 || timeSinceLastBeat >= this.minBeatInterval;
+        const isBassTransient = bassLevel > averageBass * 1.08 && bassLevel - averageBass > 0.035;
 
-        if (
-            bassLevel > averageBass * this.beatThreshold &&
-            timeSinceLastBeat >= this.minBeatInterval &&
-            timeSinceLastBeat <= this.maxBeatInterval
-        ) {
+        if (hasTimingGap && isBassTransient) {
             this.beatDetected = true;
             this.lastBeatTime = currentTime;
+        }
+
+        if (this.lastBeatTime !== 0 && timeSinceLastBeat > this.maxBeatInterval && bassLevel > averageBass + 0.02) {
+            this.lastBeatTime = currentTime;
+        }
+
+        this.beatHistory.push(bassLevel);
+        if (this.beatHistory.length > 24) {
+            this.beatHistory.shift();
         }
 
         return this.beatDetected;

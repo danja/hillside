@@ -39,6 +39,8 @@ let activePort = port;
 const duration = parseNumber(args.duration, 0);
 const crf = String(parseInteger(args.crf, 18));
 const preset = args.preset || 'medium';
+const captureMode = args.capture || 'x11';
+const preroll = parseNumber(args.preroll, captureMode === 'x11' ? 3.5 : 0);
 const visualizations = parseVisualizations(args.visualizations || args.only);
 
 await main();
@@ -47,9 +49,14 @@ async function main() {
     assertBuilt();
     await assertExecutable('ffmpeg');
     await assertExecutable('ffprobe');
+    if (captureMode === 'x11') {
+        await assertExecutable('Xvfb');
+        await assertExecutable('openbox');
+    }
 
     mkdirSync(outputDir, { recursive: true });
 
+    const display = captureMode === 'x11' ? await startVirtualDisplay() : null;
     const server = await startServer(distDir, port);
     let browser = null;
 
@@ -65,6 +72,11 @@ async function main() {
         }
 
         await new Promise((resolveClose) => server.close(resolveClose));
+
+        if (display) {
+            stopProcess(display.windowManager);
+            stopProcess(display.server);
+        }
     }
 }
 
@@ -180,10 +192,16 @@ async function listenOnAvailablePort(server, preferredPort) {
 
 async function createBrowser() {
     const browser = await puppeteer.launch({
-        headless: args.headed === 'true' ? false : 'new',
+        headless: captureMode === 'x11' || args.headed === 'true' ? false : 'new',
         args: [
             `--window-size=${width},${height}`,
             '--window-position=0,0',
+            '--kiosk',
+            '--start-fullscreen',
+            '--hide-scrollbars',
+            '--ozone-platform=x11',
+            '--disable-gpu',
+            '--disable-dev-shm-usage',
             '--autoplay-policy=no-user-gesture-required',
             '--disable-background-timer-throttling',
             '--disable-backgrounding-occluded-windows',
@@ -209,10 +227,11 @@ async function renderVisualization(browser, type) {
         console.log(`Rendering ${type} at ${width}x${height} ${fps}fps`);
         await page.goto(url, { waitUntil: 'networkidle0' });
         await page.waitForSelector('#c');
+        await page.bringToFront();
 
         const playback = await page.evaluate((renderOptions) => {
             return window.hillsideRender.preparePlayback(renderOptions);
-        }, { type, width, height, fps, duration, manualFrames: true });
+        }, { type, width, height, fps, duration, manualFrames: captureMode !== 'x11' });
 
         const audioPath = join(distDir, playback.audio);
         const captureDuration = duration > 0 ? duration : getAudioDuration(audioPath);
@@ -220,16 +239,111 @@ async function renderVisualization(browser, type) {
             throw new Error(`Could not determine duration for ${type}`);
         }
 
-        const capture = await startScreencastCapture(page, audioPath, mp4Path, captureDuration);
-        await page.evaluate(() => window.hillsideRender.beginPlayback());
-        await capture.writeFrames();
-        await page.evaluate(() => window.hillsideRender.stopPlayback());
-        await capture.stop();
+        if (captureMode === 'x11') {
+            if (preroll > 0) {
+                console.log(`Prerolling ${preroll}s before capture`);
+                await delay(preroll * 1000);
+            }
+            const capture = startX11Capture(audioPath, mp4Path, captureDuration);
+            await delay(250);
+            await page.evaluate(() => window.hillsideRender.beginPlayback());
+            await waitForProcess(capture, `ffmpeg x11 capture for ${type}`);
+            await page.evaluate(() => window.hillsideRender.stopPlayback());
+        } else {
+            const capture = await startScreencastCapture(page, audioPath, mp4Path, captureDuration);
+            await page.evaluate(() => window.hillsideRender.beginPlayback());
+            await capture.writeFrames();
+            await page.evaluate(() => window.hillsideRender.stopPlayback());
+            await capture.stop();
+        }
 
         console.log(`Wrote ${mp4Path}`);
     } finally {
         await page.close();
     }
+}
+
+async function startVirtualDisplay() {
+    const firstDisplay = parseInteger(args.display, 99);
+
+    for (let displayNumber = firstDisplay; displayNumber < firstDisplay + 20; displayNumber++) {
+        const displayName = `:${displayNumber}`;
+        const xvfb = spawn('Xvfb', [
+            displayName,
+            '-screen',
+            '0',
+            `${width}x${height}x24`,
+            '-ac',
+            '+extension',
+            'RANDR'
+        ], {
+            stdio: 'ignore'
+        });
+
+        await delay(500);
+
+        if (xvfb.exitCode !== null) {
+            continue;
+        }
+
+        process.env.DISPLAY = displayName;
+        const openbox = spawn('openbox', [], {
+            env: process.env,
+            stdio: 'ignore'
+        });
+
+        await delay(500);
+
+        if (openbox.exitCode !== null) {
+            stopProcess(xvfb);
+            continue;
+        }
+
+        return {
+            name: displayName,
+            server: xvfb,
+            windowManager: openbox
+        };
+    }
+
+    throw new Error(`Could not start Xvfb/openbox from display :${firstDisplay} to :${firstDisplay + 19}`);
+}
+
+function startX11Capture(audioPath, outputPath, captureDuration) {
+    const displayInput = getDisplayInput();
+    return spawn('ffmpeg', [
+        '-y',
+        '-thread_queue_size', '1024',
+        '-f', 'x11grab',
+        '-draw_mouse', '0',
+        '-video_size', `${width}x${height}`,
+        '-framerate', String(fps),
+        '-i', displayInput,
+        '-i', audioPath,
+        '-t', String(captureDuration),
+        '-vf', 'format=yuv420p',
+        '-r', String(fps),
+        '-c:v', 'libx264',
+        '-preset', preset,
+        '-crf', crf,
+        '-c:a', 'aac',
+        '-b:a', '192k',
+        '-shortest',
+        '-movflags', '+faststart',
+        outputPath
+    ], {
+        stdio: 'inherit'
+    });
+}
+
+function getDisplayInput() {
+    const display = process.env.DISPLAY;
+    if (!display) {
+        throw new Error('DISPLAY is not set for x11 capture.');
+    }
+
+    const baseDisplay = display.includes('.') ? display : `${display}.0`;
+    return `${baseDisplay}+0,0`;
 }
 
 async function startScreencastCapture(page, audioPath, outputPath, captureDuration) {
@@ -285,6 +399,13 @@ async function startScreencastCapture(page, audioPath, outputPath, captureDurati
             const totalFrames = Math.max(1, Math.ceil(captureDuration * fps));
             const start = Date.now();
             let lastRenderStats = null;
+            const audioStats = {
+                bass: { min: Infinity, max: -Infinity },
+                mid: { min: Infinity, max: -Infinity },
+                treble: { min: Infinity, max: -Infinity },
+                beat: { min: Infinity, max: -Infinity },
+                audioTime: 0
+            };
 
             for (let frame = 0; frame < totalFrames; frame++) {
                 const targetTime = start + (frame * 1000 / fps);
@@ -295,6 +416,7 @@ async function startScreencastCapture(page, audioPath, outputPath, captureDurati
 
                 const previousFrameCount = frameCount;
                 lastRenderStats = await page.evaluate(() => window.hillsideRender.renderFrame());
+                updateAudioStats(audioStats, lastRenderStats);
                 await waitForScreencastFrame(() => frameCount > previousFrameCount, 250);
 
                 if (!ffmpeg.stdin.write(latestFrame)) {
@@ -305,8 +427,12 @@ async function startScreencastCapture(page, audioPath, outputPath, captureDurati
             ffmpeg.stdin.end();
             if (lastRenderStats) {
                 console.log(
-                    `Last frame audio levels: bass=${lastRenderStats.bass.toFixed(3)} ` +
-                    `mid=${lastRenderStats.mid.toFixed(3)} treble=${lastRenderStats.treble.toFixed(3)}`
+                    `Frame audio ranges: ` +
+                    `bass=${formatRange(audioStats.bass)} ` +
+                    `mid=${formatRange(audioStats.mid)} ` +
+                    `treble=${formatRange(audioStats.treble)} ` +
+                    `beat=${formatRange(audioStats.beat)} ` +
+                    `audioTime=${audioStats.audioTime.toFixed(2)}s`
                 );
             }
         },
@@ -318,6 +444,18 @@ async function startScreencastCapture(page, audioPath, outputPath, captureDurati
             console.log(`Captured ${frameCount} browser screencast frames`);
         }
     };
+}
+
+function updateAudioStats(audioStats, frameStats) {
+    for (const key of ['bass', 'mid', 'treble', 'beat']) {
+        audioStats[key].min = Math.min(audioStats[key].min, frameStats[key]);
+        audioStats[key].max = Math.max(audioStats[key].max, frameStats[key]);
+    }
+    audioStats.audioTime = frameStats.audioTime;
+}
+
+function formatRange(range) {
+    return `${range.min.toFixed(3)}-${range.max.toFixed(3)}`;
 }
 
 function getAudioDuration(audioPath) {
@@ -354,6 +492,12 @@ function waitForProcess(childProcess, label) {
             rejectProcess(new Error(`${label} failed with ${signal || code}`));
         });
     });
+}
+
+function stopProcess(childProcess) {
+    if (!childProcess || childProcess.killed || childProcess.exitCode !== null) return;
+
+    childProcess.kill('SIGTERM');
 }
 
 async function waitForFirstFrame(getFrame) {
