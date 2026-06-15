@@ -6,6 +6,7 @@ An interactive media player and sextuple-visualization system featuring cellular
 
 The [algorithms](docs/algorithms.md) - detailed documentation for all six visualization systems.
 
+There is an additional git branch **render** which contains the code to directly generate video files, plus one or two more experiments.
 
 ## Features
 
