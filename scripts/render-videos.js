@@ -17,7 +17,8 @@ const VISUALIZATIONS = [
     'clouds',
     'wire',
     'mountain',
-    'step'
+    'step',
+    'tides'
 ];
 
 const MIME_TYPES = {
