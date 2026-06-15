@@ -169,6 +169,7 @@ npm run preview
 
 # Render one visualization for a short test
 ONLY=hillside ./render.sh --duration 10
+ONLY=step ./render.sh --duration 10
 
 # Override the YouTube-oriented defaults
 WIDTH=1280 HEIGHT=720 FPS=30 ./render.sh
@@ -182,6 +183,8 @@ RATE_CONTROL=crf CRF=23 PRESET=slow ./render.sh
 The renderer uses a separate `src/render.html` entry point with no navigation menu, so the GitHub Pages/browser app is left alone. By default it decodes the MP3, samples audio-reactive bass/mid/treble levels at each exact video frame time, pipes canvas frames into `ffmpeg`, and muxes the original audio into YouTube-ready H.264/AAC MP4 files. This is intentionally frame-by-frame instead of real-time screen capture, so slow renders do not create duplicate frozen frames.
 
 The default encoder settings are `RATE_CONTROL=bitrate VIDEO_BITRATE=2500k MAXRATE=3500k BUFSIZE=7000k PRESET=medium`, which keeps full-length 1080p files much smaller than the earlier `ultrafast`/low-CRF path. For a roughly 3-4 minute track, the default target is in the tens of megabytes rather than hundreds. Use `RATE_CONTROL=crf` for quality-based encoding; lower CRF values increase quality and file size. When `--duration` is omitted, each MP4 duration is derived from its audio file with `ffprobe`. The old Xvfb capture path is still available for debugging with `CAPTURE=x11 ./render.sh`, which requires `xvfb` and `openbox`.
+
+See [docs/render.md](docs/render.md) for the rendering architecture, audio-analysis technique, and encoder details.
 
 ### Testing
 

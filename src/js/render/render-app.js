@@ -4,6 +4,7 @@ import { SandpileSimulation } from '../sandpile/simulation.js';
 import { CloudsSimulation } from '../clouds/simulation.js';
 import { WireSimulation } from '../wire/simulation.js';
 import { MountainSimulation } from '../mountain/simulation.js';
+import { StepSimulation } from '../step/simulation.js';
 import { RenderAudioPlayer } from './render-audio-player.js';
 
 const VISUALIZATIONS = {
@@ -12,7 +13,8 @@ const VISUALIZATIONS = {
     road: { label: 'Road', audio: 'fish-march.mp3', Simulation: SandpileSimulation },
     clouds: { label: 'Clouds', audio: 'tecNO.mp3', Simulation: CloudsSimulation },
     wire: { label: 'Wire', audio: 'wire.mp3', Simulation: WireSimulation },
-    mountain: { label: 'Mountain', audio: 'mountain.mp3', Simulation: MountainSimulation }
+    mountain: { label: 'Mountain', audio: 'mountain.mp3', Simulation: MountainSimulation },
+    step: { label: 'Step', audio: 'step.mp3', Simulation: StepSimulation }
 };
 
 const DEFAULT_RENDER_OPTIONS = {
