@@ -71,20 +71,29 @@ Canvas frames are piped to `ffmpeg` and muxed with the original MP3 audio as H.2
 - Audio bitrate: `192k`
 - `+faststart` is enabled for web/video-platform playback
 
-The default rate control is bitrate-capped:
+The default render profile is tuned for faster iteration:
 
 ```bash
+WIDTH=1280
+HEIGHT=720
+FPS=24
 RATE_CONTROL=bitrate
-VIDEO_BITRATE=2500k
-MAXRATE=3500k
-BUFSIZE=7000k
-PRESET=medium
+VIDEO_BITRATE=1800k
+MAXRATE=2500k
+BUFSIZE=5000k
+PRESET=veryfast
 ```
 
-These defaults are aimed at keeping full-length YouTube-ready files in a manageable size range. For smaller files:
+These defaults reduce both canvas-frame cost and encoder cost compared with 1080p/30. For a final 1080p master:
 
 ```bash
-ONLY=step VIDEO_BITRATE=1800k MAXRATE=2500k BUFSIZE=5000k ./render.sh
+ONLY=step WIDTH=1920 HEIGHT=1080 FPS=30 PRESET=medium VIDEO_BITRATE=2500k MAXRATE=3500k BUFSIZE=7000k ./render.sh
+```
+
+For an even quicker or smaller test:
+
+```bash
+ONLY=step WIDTH=960 HEIGHT=540 FPS=20 VIDEO_BITRATE=1200k MAXRATE=1800k BUFSIZE=3600k ./render.sh
 ```
 
 For quality-based encoding instead of bitrate targeting:

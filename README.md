@@ -171,18 +171,18 @@ npm run preview
 ONLY=hillside ./render.sh --duration 10
 ONLY=step ./render.sh --duration 10
 
-# Override the YouTube-oriented defaults
-WIDTH=1280 HEIGHT=720 FPS=30 ./render.sh
+# Final 1080p render
+WIDTH=1920 HEIGHT=1080 FPS=30 PRESET=medium VIDEO_BITRATE=2500k MAXRATE=3500k BUFSIZE=7000k ./render.sh
 
 # Smaller/faster or higher-quality encodes
-VIDEO_BITRATE=1800k MAXRATE=2500k BUFSIZE=5000k ./render.sh
+WIDTH=960 HEIGHT=540 FPS=20 VIDEO_BITRATE=1200k MAXRATE=1800k BUFSIZE=3600k ./render.sh
 VIDEO_BITRATE=4500k MAXRATE=6500k BUFSIZE=13000k ./render.sh
 RATE_CONTROL=crf CRF=23 PRESET=slow ./render.sh
 ```
 
 The renderer uses a separate `src/render.html` entry point with no navigation menu, so the GitHub Pages/browser app is left alone. By default it decodes the MP3, samples audio-reactive bass/mid/treble levels at each exact video frame time, pipes canvas frames into `ffmpeg`, and muxes the original audio into YouTube-ready H.264/AAC MP4 files. This is intentionally frame-by-frame instead of real-time screen capture, so slow renders do not create duplicate frozen frames.
 
-The default encoder settings are `RATE_CONTROL=bitrate VIDEO_BITRATE=2500k MAXRATE=3500k BUFSIZE=7000k PRESET=medium`, which keeps full-length 1080p files much smaller than the earlier `ultrafast`/low-CRF path. For a roughly 3-4 minute track, the default target is in the tens of megabytes rather than hundreds. Use `RATE_CONTROL=crf` for quality-based encoding; lower CRF values increase quality and file size. When `--duration` is omitted, each MP4 duration is derived from its audio file with `ffprobe`. The old Xvfb capture path is still available for debugging with `CAPTURE=x11 ./render.sh`, which requires `xvfb` and `openbox`.
+The default render settings are `WIDTH=1280 HEIGHT=720 FPS=24 RATE_CONTROL=bitrate VIDEO_BITRATE=1800k MAXRATE=2500k BUFSIZE=5000k PRESET=veryfast`, which are intended to finish substantially faster than full 1080p/30 renders. Use explicit 1080p settings for final masters, or `RATE_CONTROL=crf` for quality-based encoding; lower CRF values increase quality and file size. When `--duration` is omitted, each MP4 duration is derived from its audio file with `ffprobe`. The old Xvfb capture path is still available for debugging with `CAPTURE=x11 ./render.sh`, which requires `xvfb` and `openbox`.
 
 See [docs/render.md](docs/render.md) for the rendering architecture, audio-analysis technique, and encoder details.
 
