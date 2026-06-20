@@ -2,9 +2,9 @@ import { BaseSimulation } from '../base/base-simulation.js';
 
 const COLORS = [
     { core: 'rgba(75, 211, 229, 0.95)', glow: 'rgba(75, 211, 229, 0.28)' },
-    { core: 'rgba(255, 251, 230, 0.92)', glow: 'rgba(255, 251, 230, 0.22)' },
-    { core: 'rgba(255, 217, 25, 0.92)', glow: 'rgba(255, 217, 25, 0.24)' },
-    { core: 'rgba(255, 79, 25, 0.88)', glow: 'rgba(255, 79, 25, 0.22)' },
+    { core: 'rgba(255, 251, 230, 0.68)', glow: 'rgba(255, 251, 230, 0.14)' },
+    { core: 'rgba(255, 217, 25, 0.82)', glow: 'rgba(255, 217, 25, 0.2)' },
+    { core: 'rgba(255, 79, 25, 0.8)', glow: 'rgba(255, 79, 25, 0.18)' },
     { core: 'rgba(132, 96, 255, 0.9)', glow: 'rgba(132, 96, 255, 0.24)' }
 ];
 
@@ -14,12 +14,25 @@ export class TubesSimulation extends BaseSimulation {
 
         this.agents = [];
         this.flashes = [];
+        this.paintCanvas = null;
+        this.paintContext = null;
+        this.paintScale = 0.35;
         this.bassMemory = 0;
         this.burstCooldown = 0;
         this.fieldScale = 2.5;
-        this.trailAlpha = 0.13;
+        this.trailAlpha = 0.085;
 
+        this.createPaintCanvas();
         this.initializeNodes();
+    }
+
+    createPaintCanvas() {
+        this.paintCanvas = document.createElement('canvas');
+        this.paintCanvas.width = Math.max(1, Math.floor(this.width * this.paintScale));
+        this.paintCanvas.height = Math.max(1, Math.floor(this.height * this.paintScale));
+        this.paintContext = this.paintCanvas.getContext('2d');
+        this.paintContext.fillStyle = '#000';
+        this.paintContext.fillRect(0, 0, this.paintCanvas.width, this.paintCanvas.height);
     }
 
     initializeNodes() {
@@ -27,15 +40,16 @@ export class TubesSimulation extends BaseSimulation {
         this.flashes = [];
         this.nodes = this.agents;
 
-        const count = this.width > 1024 ? 520 : 360;
+        const count = this.width > 1024 ? 320 : 220;
         const minSide = Math.min(this.width, this.height);
 
         for (let i = 0; i < count; i++) {
             const side = this.hash(i, 1) > 0.5 ? 1 : -1;
-            const band = this.hash(i, 2) > 0.5 ? 0.18 : 0.82;
-            const x = this.width * 0.5 + this.gaussian(i, 3) * this.width * 0.24;
-            const y = this.height * band + this.gaussian(i, 4) * this.height * 0.045;
+            const x = this.width * 0.5 + this.gaussian(i, 3) * this.width * 0.23;
+            const y = this.height * 0.5 + this.gaussian(i, 4) * this.height * 0.045;
             const sizeSeed = this.hash(i, 5);
+            const widthClass = this.hash(i, 10);
+            const strokeBoost = widthClass > 0.88 ? 2.8 : widthClass > 0.58 ? 1.45 : 0.72;
 
             this.agents.push({
                 id: i,
@@ -45,11 +59,12 @@ export class TubesSimulation extends BaseSimulation {
                 py: y,
                 z: this.hash(i, 6),
                 direction: side,
-                speed: 0.55 + this.hash(i, 7) * 1.35,
-                radius: minSide * (0.0035 + sizeSeed * 0.008),
-                baseRadius: minSide * (0.0035 + sizeSeed * 0.008),
+                speed: 0.42 + this.hash(i, 7) * 1.15,
+                radius: minSide * (0.0027 + sizeSeed * 0.0065) * strokeBoost,
+                baseRadius: minSide * (0.0027 + sizeSeed * 0.0065) * strokeBoost,
                 phase: this.hash(i, 8) * Math.PI * 2,
                 color: COLORS[i % COLORS.length],
+                strokeBoost,
                 age: this.hash(i, 9) * 100
             });
         }
@@ -72,8 +87,10 @@ export class TubesSimulation extends BaseSimulation {
             this.createFlash(bass);
         }
 
+        this.fadePaintLayer(bass, beat);
+        this.depositAgents(bass, mid, treble);
         this.drawFieldLines(elapsed, bass, mid);
-        this.drawAgentTrails(bass, mid, treble);
+        this.drawPaintLayer(bass, mid, treble);
         this.drawAgents(bass, treble);
         this.drawFlashes();
 
@@ -93,7 +110,7 @@ export class TubesSimulation extends BaseSimulation {
     }
 
     fadeBackground(bass, beat) {
-        const alpha = Math.max(0.055, this.trailAlpha - bass * 0.045 - beat * 0.025);
+        const alpha = Math.max(0.035, this.trailAlpha - bass * 0.035 - beat * 0.02);
         const gradient = this.context.createRadialGradient(
             this.width * 0.5,
             this.height * 0.5,
@@ -115,8 +132,8 @@ export class TubesSimulation extends BaseSimulation {
     }
 
     updateAgents(dt, elapsed, bass, mid, treble, burst) {
-        const speedScale = (0.9 + bass * 1.9 + mid * 0.65) * (dt * 58);
-        const pulse = 1 + bass * 1.35 + treble * 0.32;
+        const speedScale = (0.72 + bass * 1.45 + mid * 0.55) * (dt * 58);
+        const pulse = 1 + bass * 0.9 + treble * 0.24;
 
         this.agents.forEach((agent) => {
             agent.px = agent.x;
@@ -178,13 +195,91 @@ export class TubesSimulation extends BaseSimulation {
     }
 
     resetAgent(agent) {
-        const band = agent.y < this.height / 2 ? 0.82 : 0.18;
         agent.x = this.width * 0.5 + this.gaussian(agent.id + Math.floor(agent.age * 13), 22) * this.width * 0.26;
-        agent.y = this.height * band + this.gaussian(agent.id + Math.floor(agent.age * 17), 23) * this.height * 0.055;
+        agent.y = this.height * 0.5 + this.gaussian(agent.id + Math.floor(agent.age * 17), 23) * this.height * 0.055;
         agent.px = agent.x;
         agent.py = agent.y;
         agent.direction *= -1;
         agent.radius = agent.baseRadius;
+    }
+
+    fadePaintLayer(bass, beat) {
+        if (!this.paintContext) return;
+
+        const decay = Math.max(0.006, 0.014 - bass * 0.006 - beat * 0.003);
+        this.paintContext.save();
+        this.paintContext.globalCompositeOperation = 'source-over';
+        this.paintContext.setTransform(this.paintScale, 0, 0, this.paintScale, 0, 0);
+        this.paintContext.fillStyle = `rgba(0, 0, 0, ${decay})`;
+        this.paintContext.fillRect(0, 0, this.width, this.height);
+        this.paintContext.restore();
+    }
+
+    depositAgents(bass, mid, treble) {
+        if (!this.paintContext) return;
+
+        const paint = this.paintContext;
+        paint.save();
+        paint.setTransform(this.paintScale, 0, 0, this.paintScale, 0, 0);
+        paint.globalCompositeOperation = 'lighter';
+        paint.lineCap = 'round';
+        paint.lineJoin = 'round';
+
+        this.agents.forEach((agent) => {
+            if ((agent.id + this.counter) % 4 !== 0) return;
+
+            const distance = Math.hypot(agent.x - agent.px, agent.y - agent.py);
+            if (distance < 0.01 || distance > this.width * 0.35) return;
+
+            const tubeWidth = Math.max(1.2, agent.radius * (2.15 + bass * 1.4 + agent.z * 0.85));
+            const beadRadius = Math.max(1.1, agent.radius * (1.35 + bass * 0.9 + treble * 0.35));
+
+            paint.strokeStyle = agent.color.glow;
+            paint.lineWidth = tubeWidth;
+            paint.globalAlpha = 0.15 + mid * 0.14 + treble * 0.06;
+            paint.beginPath();
+            paint.moveTo(agent.px, agent.py);
+            paint.lineTo(agent.x, agent.y);
+            paint.stroke();
+
+            paint.strokeStyle = agent.color.core;
+            paint.lineWidth = Math.max(0.7, tubeWidth * 0.34);
+            paint.globalAlpha = 0.14 + bass * 0.1;
+            paint.beginPath();
+            paint.moveTo(agent.px, agent.py);
+            paint.lineTo(agent.x, agent.y);
+            paint.stroke();
+
+            if ((agent.id + this.counter) % 3 === 0) {
+                paint.fillStyle = agent.color.core;
+                paint.globalAlpha = 0.09 + bass * 0.14;
+                paint.beginPath();
+                paint.arc(agent.x, agent.y, beadRadius, 0, Math.PI * 2);
+                paint.fill();
+            }
+        });
+
+        paint.restore();
+    }
+
+    drawPaintLayer(bass, mid, treble) {
+        if (!this.paintCanvas) return;
+
+        this.context.save();
+        this.context.globalCompositeOperation = 'screen';
+        this.context.globalAlpha = 0.72 + bass * 0.12;
+        this.context.drawImage(
+            this.paintCanvas,
+            0,
+            0,
+            this.paintCanvas.width,
+            this.paintCanvas.height,
+            0,
+            0,
+            this.width,
+            this.height
+        );
+        this.context.restore();
     }
 
     drawFieldLines(elapsed, bass, mid) {
@@ -259,7 +354,9 @@ export class TubesSimulation extends BaseSimulation {
         this.context.globalCompositeOperation = 'screen';
 
         this.agents.forEach((agent) => {
-            const glow = agent.radius * (4 + bass * 6);
+            if ((agent.id + this.counter) % 8 !== 0) return;
+
+            const glow = agent.radius * (2.8 + bass * 4.5);
             const gradient = this.context.createRadialGradient(agent.x, agent.y, 0, agent.x, agent.y, glow);
 
             gradient.addColorStop(0, agent.color.core);
@@ -273,7 +370,7 @@ export class TubesSimulation extends BaseSimulation {
 
             this.context.fillStyle = agent.color.core;
             this.context.beginPath();
-            this.context.arc(agent.x, agent.y, agent.radius * (0.72 + treble * 0.3), 0, Math.PI * 2);
+            this.context.arc(agent.x, agent.y, agent.radius * (0.48 + treble * 0.24), 0, Math.PI * 2);
             this.context.fill();
         });
 
@@ -337,6 +434,7 @@ export class TubesSimulation extends BaseSimulation {
     onResize(width, height) {
         this.width = width;
         this.height = height;
+        this.createPaintCanvas();
         this.initializeNodes();
     }
 }
