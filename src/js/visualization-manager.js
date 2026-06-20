@@ -6,6 +6,7 @@ import { WireSimulation } from './wire/simulation.js';
 import { MountainSimulation } from './mountain/simulation.js';
 import { StepSimulation } from './step/simulation.js';
 import { TidesSimulation } from './tides/simulation.js';
+import { TubesSimulation } from './tubes/simulation.js';
 import { AudioPlayer } from './media/audio-player.js';
 import { getCanvasMousePosition, resizeCanvas } from './utils/dom.js';
 
@@ -39,7 +40,8 @@ export class VisualizationManager {
             wire: 'wire.mp3',
             mountain: 'mountain.mp3',
             step: 'step.mp3',
-            tides: 'tides.mp3'
+            tides: 'tides.mp3',
+            tubes: 'tubes.mp3'
         };
         
         this.initialize();
@@ -135,6 +137,11 @@ export class VisualizationManager {
                 break;
             case 'tides':
                 this.currentVisualization = new TidesSimulation(
+                    this.canvas, this.context, width, height, this.audioPlayer
+                );
+                break;
+            case 'tubes':
+                this.currentVisualization = new TubesSimulation(
                     this.canvas, this.context, width, height, this.audioPlayer
                 );
                 break;

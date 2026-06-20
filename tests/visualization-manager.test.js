@@ -111,6 +111,15 @@ vi.mock('../src/js/tides/simulation.js', () => ({
     }))
 }));
 
+vi.mock('../src/js/tubes/simulation.js', () => ({
+    TubesSimulation: vi.fn(() => ({
+        destroy: vi.fn(),
+        start: vi.fn(),
+        stop: vi.fn(),
+        resize: vi.fn()
+    }))
+}));
+
 describe('VisualizationManager', () => {
     let manager;
 
@@ -128,6 +137,7 @@ describe('VisualizationManager', () => {
         expect(manager.audioFiles).toHaveProperty('roofs');
         expect(manager.audioFiles).toHaveProperty('step');
         expect(manager.audioFiles).toHaveProperty('tides');
+        expect(manager.audioFiles).toHaveProperty('tubes');
     });
 
     it('should have correct audio files mapping', () => {
@@ -135,6 +145,7 @@ describe('VisualizationManager', () => {
         expect(manager.audioFiles.roofs).toBe('roofs.mp3');
         expect(manager.audioFiles.step).toBe('step.mp3');
         expect(manager.audioFiles.tides).toBe('tides.mp3');
+        expect(manager.audioFiles.tubes).toBe('tubes.mp3');
     });
 
     it('should switch visualization successfully', async () => {
@@ -307,6 +318,9 @@ describe('VisualizationManager', () => {
         expect(manager.currentVisualization).toBeDefined();
 
         await manager.switchVisualization('tides');
+        expect(manager.currentVisualization).toBeDefined();
+
+        await manager.switchVisualization('tubes');
         expect(manager.currentVisualization).toBeDefined();
     });
 

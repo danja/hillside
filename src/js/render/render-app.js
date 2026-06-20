@@ -6,6 +6,7 @@ import { WireSimulation } from '../wire/simulation.js';
 import { MountainSimulation } from '../mountain/simulation.js';
 import { StepSimulation } from '../step/simulation.js';
 import { TidesSimulation } from '../tides/simulation.js';
+import { TubesSimulation } from '../tubes/simulation.js';
 import { RenderAudioPlayer } from './render-audio-player.js';
 
 const VISUALIZATIONS = {
@@ -16,7 +17,8 @@ const VISUALIZATIONS = {
     wire: { label: 'Wire', audio: 'wire.mp3', Simulation: WireSimulation },
     mountain: { label: 'Mountain', audio: 'mountain.mp3', Simulation: MountainSimulation },
     step: { label: 'Step', audio: 'step.mp3', Simulation: StepSimulation },
-    tides: { label: 'Tides', audio: 'tides.mp3', Simulation: TidesSimulation }
+    tides: { label: 'Tides', audio: 'tides.mp3', Simulation: TidesSimulation },
+    tubes: { label: 'Tubes', audio: 'tubes.mp3', Simulation: TubesSimulation }
 };
 
 const DEFAULT_RENDER_OPTIONS = {

@@ -18,7 +18,8 @@ const VISUALIZATIONS = [
     'wire',
     'mountain',
     'step',
-    'tides'
+    'tides',
+    'tubes'
 ];
 
 const MIME_TYPES = {
